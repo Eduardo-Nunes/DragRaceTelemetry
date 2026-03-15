@@ -4,7 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eduardo.nunes.drt.core.bluetooth.ObdBleManager
 import com.eduardo.nunes.drt.core.state.AppSharedState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
@@ -20,6 +24,8 @@ class RaceTelemetryViewModel(
     val effect: SharedFlow<RaceTelemetryContract.Effect> = _effect.asSharedFlow()
 
     private var raceStartTime: TimeMark? = null
+
+    private var timerJob: Job? = null
 
     init {
         // Observa o status do Bluetooth
@@ -83,19 +89,20 @@ class RaceTelemetryViewModel(
             _state.update {
                 it.copy(
                     isRecording = true,
-                    timer0to100 = null,
+                    timer0to100 = 0L,
                     formattedTimer0to100 = "0.000"
                 )
             }
             raceStartTime = null
+            // O timerJob NÃO começa aqui. Ele começa no primeiro movimento (speed > 0).
         } else {
-            sendEffect(RaceTelemetryContract.Effect.ShowError("Dispositivo OBD2 não conectado!"))
+            sendEffect(RaceTelemetryContract.Effect.ShowError("Conecte o OBD2 primeiro!"))
         }
     }
 
     private fun stopRecording() {
+        timerJob?.cancel()
         _state.update { it.copy(isRecording = false) }
-        raceStartTime = null
     }
 
     private fun resetRace() {
@@ -118,33 +125,43 @@ class RaceTelemetryViewModel(
     private fun handleSpeedUpdate(speed: Int) {
         if (!_state.value.isRecording) return
 
+        // Dispara o cronômetro no primeiro sinal de movimento
         if (speed > 0 && raceStartTime == null) {
-            // O carro começou a se mover
             raceStartTime = TimeSource.Monotonic.markNow()
+            startUiTimer() // <--- LANÇA O LOOP DE UI INDEPENDENTE
         }
 
-        raceStartTime?.let { startTime ->
-            val elapsed = startTime.elapsedNow().inWholeMilliseconds
-            val formatted = formatMillis(elapsed)
-
+        // Para o cronômetro ao atingir 100km/h
+        if (speed >= 100 && _state.value.isRecording) {
+            stopRecording()
+            val finalTime = raceStartTime?.elapsedNow()?.inWholeMilliseconds ?: 0L
             _state.update {
                 it.copy(
-                    timer0to100 = elapsed,
-                    formattedTimer0to100 = formatted
+                    timer0to100 = finalTime,
+                    formattedTimer0to100 = formatMillis(finalTime)
                 )
             }
+            sendEffect(RaceTelemetryContract.Effect.RaceCompleted(finalTime, formatMillis(finalTime)))
+        }
+    }
 
-            if (speed >= 100) {
-                // Chegou a 100 km/h, finaliza a puxada 0-100
-                _state.update {
-                    it.copy(
-                        isRecording = false,
-                        timer0to100 = elapsed,
-                        formattedTimer0to100 = formatted
-                    )
+    private fun startUiTimer() {
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch(Dispatchers.Default) {
+            while (isActive && _state.value.isRecording) {
+                raceStartTime?.let { startTime ->
+                    val elapsed = startTime.elapsedNow().inWholeMilliseconds
+
+                    // Atualizamos o estado na Main Thread para a UI
+                    _state.update {
+                        it.copy(
+                            timer0to100 = elapsed,
+                            formattedTimer0to100 = formatMillis(elapsed)
+                        )
+                    }
                 }
-                sendEffect(RaceTelemetryContract.Effect.RaceCompleted(elapsed, formatted))
-                raceStartTime = null
+                // Delay de 16ms aprox. 60fps para o cronômetro ser fluído
+                delay(16)
             }
         }
     }
