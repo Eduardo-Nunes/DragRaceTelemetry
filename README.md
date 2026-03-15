@@ -19,7 +19,7 @@ O projeto foi construído utilizando o estado da arte do ecossistema Kotlin:
 
 Focado em precisão e compatibilidade:
 
-- **Adaptadores:** Recomendado **[uScan OBD2](https://uscan.drivr.com.br/uscan-obd2)** (Ultra-rápido), Konnwei KW903 ou similares baseados em ELM327.
+- **Adaptadores:** Recomendado **[uScan OBD2](https://meli.la/1pv3UKW)** (Ultra-rápido), Konnwei KW903 ou similares baseados em ELM327.
 - **Protocolo:** ELM327 sobre BLE (Bluetooth Low Energy).
 - **Veículos:** Compatível com veículos que seguem o padrão OBD2 (PIDs de velocidade e RPM padrão SAE J1979).
 
