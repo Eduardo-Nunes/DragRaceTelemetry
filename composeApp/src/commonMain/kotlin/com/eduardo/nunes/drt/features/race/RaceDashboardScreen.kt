@@ -187,7 +187,7 @@ fun TerminalLogComponent(logs: List<String>) {
             state = listState,
             modifier = Modifier.fillMaxSize()
         ) {
-            items(logs) { log ->
+            items(logs, key = { it.hashCode() }) { log ->
                 Text(
                     text = log,
                     color = Color.Green,

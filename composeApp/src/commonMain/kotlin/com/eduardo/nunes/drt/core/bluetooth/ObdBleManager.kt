@@ -2,6 +2,8 @@ package com.eduardo.nunes.drt.core.bluetooth
 
 import com.eduardo.nunes.drt.features.race.RaceTelemetryContract
 import com.juul.kable.*
+import kotlinx.collections.immutable.PersistentList
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
@@ -25,7 +27,8 @@ class ObdBleManager(
     private val _currentRpm = MutableStateFlow(0)
     val currentRpm: StateFlow<Int> = _currentRpm
 
-    private val _logs = MutableStateFlow<List<String>>(emptyList())
+    private val _logs = MutableStateFlow<PersistentList<String>>(persistentListOf())
+
     val logs: StateFlow<List<String>> = _logs.asStateFlow()
 
     private var peripheral: Peripheral? = null
@@ -33,9 +36,18 @@ class ObdBleManager(
     private val scanner = Scanner()
 
     private fun logTerminal(message: String) {
-        // Log com timestamp simples para facilitar o track de latência
         val timestamp = " > "
-        _logs.update { (it + "$timestamp$message").takeLast(64) }
+        val formattedMessage = "$timestamp$message"
+
+        _logs.update { currentLogs ->
+            var newLogs = currentLogs.add(formattedMessage)
+
+            if (newLogs.size > 256) {
+                newLogs = newLogs.removeAt(0)
+            }
+
+            newLogs
+        }
     }
 
     fun startScanning() {
