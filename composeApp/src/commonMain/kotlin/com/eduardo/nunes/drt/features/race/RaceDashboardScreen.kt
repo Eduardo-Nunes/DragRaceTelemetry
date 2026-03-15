@@ -73,7 +73,7 @@ fun RaceDashboardContent(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Ícone de engrenagem alinhado à direita de forma natural no layout (sem sobreposição)
+                    // Ícone de engrenagem alinhado à direita
                     Box(
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                         contentAlignment = Alignment.CenterEnd
@@ -115,6 +115,7 @@ fun RaceDashboardContent(
                     bluetoothStatus = state.bluetoothStatus,
                     onScanClick = { onIntent(RaceTelemetryContract.Intent.StartScanning) },
                     onConnectClick = { onIntent(RaceTelemetryContract.Intent.ConnectToDevice) },
+                    onDisconnectClick = { onIntent(RaceTelemetryContract.Intent.DisconnectDevice) },
                     onArmClick = { onIntent(RaceTelemetryContract.Intent.StartRace) },
                     onStopClick = { onIntent(RaceTelemetryContract.Intent.StopRace) }
                 )
@@ -264,6 +265,7 @@ fun ActionButtons(
     bluetoothStatus: RaceTelemetryContract.BluetoothStatus,
     onScanClick: () -> Unit,
     onConnectClick: () -> Unit,
+    onDisconnectClick: () -> Unit,
     onArmClick: () -> Unit,
     onStopClick: () -> Unit
 ) {
@@ -273,7 +275,7 @@ fun ActionButtons(
     // Lógica de cores e texto para o botão principal
     val (primaryText, textColor, bgColor) = when (bluetoothStatus) {
         is RaceTelemetryContract.BluetoothStatus.Connected ->
-            Triple("OBD2 CONECTADO", Color.LightGray, Color(0xFF333333))
+            Triple("DESCONECTAR OBD2", Color.White, Color(0xFFD32F2F))
 
         is RaceTelemetryContract.BluetoothStatus.DeviceFound -> {
             val deviceName = bluetoothStatus.device.name ?: "OBD2"
@@ -292,16 +294,18 @@ fun ActionButtons(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Button(
-            onClick = if (hasDeviceFound) onConnectClick else onScanClick,
+            onClick = when {
+                isConnected -> onDisconnectClick
+                hasDeviceFound -> onConnectClick
+                else -> onScanClick
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = bgColor,
-                disabledContainerColor = bgColor // Mantém a cor mesmo se desabilitado (Connected)
+                containerColor = bgColor
             ),
-            shape = RoundedCornerShape(12.dp),
-            enabled = !isConnected
+            shape = RoundedCornerShape(12.dp)
         ) {
             Text(
                 text = primaryText,

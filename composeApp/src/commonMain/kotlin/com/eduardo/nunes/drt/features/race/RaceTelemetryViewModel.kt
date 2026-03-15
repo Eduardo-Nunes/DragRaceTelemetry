@@ -66,13 +66,12 @@ class RaceTelemetryViewModel(
         when (intent) {
             is RaceTelemetryContract.Intent.StartScanning -> obdBleManager.startScanning()
             is RaceTelemetryContract.Intent.ConnectToDevice -> {
-                // Como Kable usa Advertisement em vez de MacAddress nativo para multiplatform,
-                // vamos buscar do último status 'DeviceFound' caso o mac bata.
                 val currentStatus = _state.value.bluetoothStatus
                 if (currentStatus is RaceTelemetryContract.BluetoothStatus.DeviceFound) {
                     obdBleManager.connectToDevice(currentStatus.device)
                 }
             }
+            is RaceTelemetryContract.Intent.DisconnectDevice -> obdBleManager.disconnect()
             is RaceTelemetryContract.Intent.StopRace -> stopRecording()
             is RaceTelemetryContract.Intent.StartRace -> startRecording()
         }
@@ -136,7 +135,7 @@ class RaceTelemetryViewModel(
 
             if (speed >= 100) {
                 // Chegou a 100 km/h, finaliza a puxada 0-100
-                _state.update { 
+                _state.update {
                     it.copy(
                         isRecording = false, 
                         timer0to100 = elapsed,
@@ -159,5 +158,10 @@ class RaceTelemetryViewModel(
         viewModelScope.launch {
             _effect.emit(effect)
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        obdBleManager.disconnect() // Garante a desconexão quando a feature/app é fechada
     }
 }

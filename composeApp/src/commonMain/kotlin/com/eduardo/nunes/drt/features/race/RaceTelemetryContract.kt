@@ -25,6 +25,7 @@ interface RaceTelemetryContract {
     sealed class Intent {
         object StartScanning : Intent()
         object ConnectToDevice : Intent()
+        object DisconnectDevice : Intent()
         object StartRace : Intent()
         object StopRace : Intent()
     }
