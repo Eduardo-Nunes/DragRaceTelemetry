@@ -13,6 +13,7 @@ kotlinx-collections-immutable = "0.4.0"
 kable = "0.32.0"
 koin = "4.1.1"
 material3 = "1.9.0"
+materialIconsExtended = "1.7.3"
 navigation-compose = "2.9.2"
 
 [libraries]
@@ -37,6 +38,7 @@ compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", v
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
+material-icons-extended = { module = "org.jetbrains.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
 material3-v190 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
 navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigation-compose" }
 
