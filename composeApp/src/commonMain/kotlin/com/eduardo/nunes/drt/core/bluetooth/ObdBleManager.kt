@@ -55,6 +55,7 @@ class ObdBleManager(
                     .filter { advertisement ->
                         val name = advertisement.name ?: ""
                         name.contains("OBD", ignoreCase = true) ||
+                                name.contains("uScan", ignoreCase = true) ||
                                 name.contains("Vgate", ignoreCase = true) ||
                                 name.contains("ELM", ignoreCase = true)
                     }

@@ -1,19 +1,62 @@
-*.iml
-.kotlin
+# --- Kotlin Multiplatform & Android ---
 .gradle
-**/build/
-xcuserdata
-!src/**/build/
+build/
+bin/
+gen/
+out/
+.kotlin
+*.class
+*.dex
+*.pyc
+
+# --- Android Studio / IntelliJ ---
+.idea/
+*.iml
+*.iws
+.project
+.settings
+.classpath
 local.properties
-.idea
-.DS_Store
-captures
+.navigation/
+captures/
+*.hprof
 .externalNativeBuild
 .cxx
-*.xcodeproj/*
-!*.xcodeproj/project.pbxproj
-!*.xcodeproj/xcshareddata/
-!*.xcodeproj/project.xcworkspace/
-!*.xcworkspace/contents.xcworkspacedata
-**/xcshareddata/WorkspaceSettings.xcsettings
-node_modules/
+
+# --- iOS (Xcode) ---
+.DS_Store
+*.swp
+*.lock
+profile
+derivedData
+build/
+DerivedData/
+*.moved-aside
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+xcuserdata/
+Default.mode1v3
+Default.mode2v3
+Default.perspectivev3
+!default.mode1v3
+!default.mode2v3
+!default.perspectivev3
+
+# --- CocoaPods (se for usar no iOS) ---
+Pods/
+Headers/
+.prev_podfile_checksum
+
+# --- OS X ---
+.DS_Store
+
+# --- Secrets & Environment ---
+*.keystore
+!debug.keystore
+google-services.json
+GoogleService-Info.plist
+.env
+
+# --- Crashlytics ---
+com_crashlytics_export_strings.xml

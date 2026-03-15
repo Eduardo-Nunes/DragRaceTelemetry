@@ -1,35 +1,63 @@
-This is a Kotlin Multiplatform project targeting Android, iOS.
+# DragRaceTelemetry 🏎️💨
 
-* [/composeApp](./composeApp/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./composeApp/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./composeApp/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./composeApp/src/jvmMain/kotlin)
-    folder is the appropriate location.
+DragRaceTelemetry é uma plataforma de telemetria de alta performance desenvolvida para entusiastas automotivos e preparadores. O projeto resolve o problema de acesso a métricas precisas de arrancada (0-100km/h, 201m, 400m) sem a necessidade de hardware proprietário caro, utilizando apenas o smartphone do usuário e um adaptador OBD2 padrão.
 
-* [/iosApp](./iosApp/iosApp) contains iOS applications. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
+Este é um projeto Micro-SaaS focado em baixa latência, portabilidade e arquitetura reativa.
 
-### Build and Run Android Application
+## 🚀 Tech Stack (Modern Engineering 2026)
 
-To build and run the development version of the Android app, use the run configuration from the run widget
-in your IDE’s toolbar or build it directly from the terminal:
-- on macOS/Linux
-  ```shell
-  ./gradlew :composeApp:assembleDebug
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :composeApp:assembleDebug
-  ```
+O projeto foi construído utilizando o estado da arte do ecossistema Kotlin:
 
-### Build and Run iOS Application
+- **Kotlin Multiplatform (KMP):** 100% da lógica de negócio e parsers de protocolo compartilhados entre Android e iOS.
+- **Compose Multiplatform (CMP):** UI declarativa unificada, garantindo paridade visual e funcional em ambas as plataformas.
+- **Strict MVI Architecture:** Fluxo de dados unidirecional (Intent -> ViewModel -> State -> UI) para gerenciamento de estado previsível.
+- **Kable (BLE):** Comunicação de baixa latência via Bluetooth Low Energy (BLE) configurada integralmente no `commonMain`.
+- **Kotlin Coroutines & Flow:** Processamento assíncrono para garantir fluidez da UI, mesmo com alta taxa de atualização do barramento CAN.
+- **Performance First:** Parser OBD2 otimizado com operações **Bitwise** para garantir o menor overhead possível durante a telemetria em tempo real.
 
-To build and run the development version of the iOS app, use the run configuration from the run widget
-in your IDE’s toolbar or open the [/iosApp](./iosApp) directory in Xcode and run it from there.
+## 🛠️ Hardware Support
+
+Focado em precisão e compatibilidade:
+
+- **Adaptadores:** Recomendado **[uScan OBD2](https://uscan.drivr.com.br/uscan-obd2)** (Ultra-rápido), Konnwei KW903 ou similares baseados em ELM327.
+- **Protocolo:** ELM327 sobre BLE (Bluetooth Low Energy).
+- **Veículos:** Compatível com veículos que seguem o padrão OBD2 (PIDs de velocidade e RPM padrão SAE J1979).
+
+## 🏗️ Project Structure
+
+```text
+├── composeApp
+│   ├── src
+│   │   ├── commonMain (Lógica Compartilhada & UI)
+│   │   │   ├── app (Navegação e Entry Point)
+│   │   │   ├── core (Bluetooth Manager, OBD2 Parsers, State Global)
+│   │   │   ├── features (Race Dashboard, Settings)
+│   │   │   └── plataform (Expect declarations para hardware)
+│   │   ├── androidMain (Implementação de permissões e Bluetooth Android)
+│   │   └── iosMain (Configurações específicas CoreBluetooth)
+├── iosApp (Entry point nativo para iOS)
+└── gradle/libs.versions.toml (Gerenciamento centralizado de dependências)
+```
+
+## 🏁 Roadmap
+
+- [x] **MVP:** Conexão estável com uScan OBD2 e leitura de RPM/Velocidade.
+- [x] **UI:** Dashboard automotivo com modo Dark forçado e terminal de logs interativo.
+- [ ] **v1.1:** Gráficos de telemetria em tempo real (Boost vs Speed).
+- [ ] **v1.2:** Exportação de logs em CSV/JSON para análise em desktop.
+- [ ] **v2.0:** Leaderboard global e validação de tempo via GPS + OBD2.
+
+## 📄 License
+
+Este projeto é desenvolvido sob a licença MIT.
 
 ---
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
+### Build and Run
+
+#### Android
+- **Windows:** `.\gradlew.bat :composeApp:assembleDebug`
+- **macOS/Linux:** `./gradlew :composeApp:assembleDebug`
+
+#### iOS
+Abra o diretório `/iosApp` no Xcode ou use a configuração de execução do Android Studio.
