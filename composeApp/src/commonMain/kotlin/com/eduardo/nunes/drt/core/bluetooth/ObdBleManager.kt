@@ -50,6 +50,10 @@ class ObdBleManager(
         }
     }
 
+    fun clearLogs(){
+        _logs.value = persistentListOf()
+    }
+
     fun startScanning() {
         if (_bluetoothStatus.value is RaceTelemetryContract.BluetoothStatus.Scanning) return
         _bluetoothStatus.value = RaceTelemetryContract.BluetoothStatus.Scanning

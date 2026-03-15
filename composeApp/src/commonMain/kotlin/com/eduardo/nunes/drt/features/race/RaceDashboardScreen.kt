@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -74,10 +75,24 @@ fun RaceDashboardContent(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // Ícone de engrenagem alinhado à direita
-                    Box(
+                    Row(
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                        contentAlignment = Alignment.CenterEnd
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (state.showTerminalLogs) {
+                            IconButton(
+                                onClick = { onIntent(RaceTelemetryContract.Intent.ClearLogs) },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CleaningServices,
+                                    contentDescription = "Limpar Logs",
+                                    tint = Color(0xFFE53935).copy(alpha = 0.8f)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                        }
                         IconButton(
                             onClick = onNavigateToSettings,
                             modifier = Modifier.size(36.dp)

@@ -71,16 +71,18 @@ class RaceTelemetryViewModel(
     fun handleIntent(intent: RaceTelemetryContract.Intent) {
         when (intent) {
             is RaceTelemetryContract.Intent.StartScanning -> obdBleManager.startScanning()
-            is RaceTelemetryContract.Intent.ConnectToDevice -> {
-                val currentStatus = _state.value.bluetoothStatus
-                if (currentStatus is RaceTelemetryContract.BluetoothStatus.DeviceFound) {
-                    obdBleManager.connectToDevice(currentStatus.device)
-                }
-            }
-
             is RaceTelemetryContract.Intent.DisconnectDevice -> obdBleManager.disconnect()
             is RaceTelemetryContract.Intent.StopRace -> stopRecording()
             is RaceTelemetryContract.Intent.StartRace -> startRecording()
+            is RaceTelemetryContract.Intent.ConnectToDevice -> connectToDevice()
+            is RaceTelemetryContract.Intent.ClearLogs -> obdBleManager.clearLogs()
+        }
+    }
+
+    private fun connectToDevice() {
+        val currentStatus = _state.value.bluetoothStatus
+        if (currentStatus is RaceTelemetryContract.BluetoothStatus.DeviceFound) {
+            obdBleManager.connectToDevice(currentStatus.device)
         }
     }
 
