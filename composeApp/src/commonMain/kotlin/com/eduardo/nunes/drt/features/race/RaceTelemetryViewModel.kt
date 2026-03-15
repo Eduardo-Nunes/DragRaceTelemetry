@@ -91,8 +91,16 @@ class RaceTelemetryViewModel(
             _state.update {
                 it.copy(
                     isRecording = true,
+                    // Reseta ambos os cronômetros
                     timer0to100 = 0L,
-                    formattedTimer0to100 = "0.000"
+                    formattedTimer0to100 = "0.000",
+                    is0to100Completed = false,
+                    currentDistance = 0.0,
+                    currentTimer = 0L,
+                    formattedCurrentTimer = "0.000",
+                    timer60ft = null, formatted60ft = "--.---",
+                    timer100m = null, formatted100m = "--.---",
+                    timer201m = null, formatted201m = "--.---"
                 )
             }
             raceStartTime = null
@@ -105,6 +113,8 @@ class RaceTelemetryViewModel(
     private fun stopRecording() {
         timerJob?.cancel()
         _state.update { it.copy(isRecording = false) }
+        // Não reseta os valores para que o usuário possa ver o resultado final.
+        // O reset é feito no `startRecording` ou `resetRace`.
     }
 
     private fun resetRace() {
@@ -112,7 +122,14 @@ class RaceTelemetryViewModel(
             it.copy(
                 isRecording = false,
                 timer0to100 = null,
-                formattedTimer0to100 = "0.000"
+                formattedTimer0to100 = "0.000",
+                is0to100Completed = false,
+                currentDistance = 0.0,
+                currentTimer = 0L,
+                formattedCurrentTimer = "0.000",
+                timer60ft = null, formatted60ft = "--.---",
+                timer100m = null, formatted100m = "--.---",
+                timer201m = null, formatted201m = "--.---"
             )
         }
         raceStartTime = null
@@ -122,7 +139,7 @@ class RaceTelemetryViewModel(
      * Lógica Crítica (Testes de Mesa)
      * - A latência do adaptador OBD2 é considerada (geralmente atualiza 2 a 5x por segundo no máximo).
      * - O cronômetro precisa disparar no momento que o speed sai de 0 para >0.
-     * - Quando chegar em >=100km/h ele para o cronômetro.
+     * - A distância é integrada no loop da UI.
      */
     private fun handleSpeedUpdate(speed: Int) {
         if (!_state.value.isRecording) return
@@ -132,38 +149,96 @@ class RaceTelemetryViewModel(
             raceStartTime = TimeSource.Monotonic.markNow()
             startUiTimer() // <--- LANÇA O LOOP DE UI INDEPENDENTE
         }
-
-        // Para o cronômetro ao atingir 100km/h
-        if (speed >= 100 && _state.value.isRecording) {
-            stopRecording()
-            val finalTime = raceStartTime?.elapsedNow()?.inWholeMilliseconds ?: 0L
-            _state.update {
-                it.copy(
-                    timer0to100 = finalTime,
-                    formattedTimer0to100 = formatMillis(finalTime)
-                )
-            }
-            sendEffect(RaceTelemetryContract.Effect.RaceCompleted(finalTime, formatMillis(finalTime)))
-        }
     }
 
     private fun startUiTimer() {
         timerJob?.cancel()
         timerJob = viewModelScope.launch(Dispatchers.Default) {
+            var currentDistanceMeters = 0.0
+            var lastTick = TimeSource.Monotonic.markNow()
+
+            // CACHE: Evita alocar milhares de Strings por segundo para etapas já concluídas
+            var cachedFormatted0to100 = "0.000"
+            var cachedFormatted60ft = "--.---"
+            var cachedFormatted100m = "--.---"
+            var cachedFormatted201m = "--.---"
+            var cachedFormattedCurrentTimer = "0.000"
+
             while (isActive && _state.value.isRecording) {
+                val tickStart = TimeSource.Monotonic.markNow()
+                val dtMs = lastTick.elapsedNow().inWholeMilliseconds.coerceAtLeast(1) // Evita divisão por zero
+                lastTick = tickStart
+
+                // --- Cálculos de Física ---
+                val currentSpeedMs = _state.value.currentSpeed / 3.6
+                val deltaDistance = currentSpeedMs * (dtMs / 1000.0)
+                currentDistanceMeters += deltaDistance
+
                 raceStartTime?.let { startTime ->
                     val elapsed = startTime.elapsedNow().inWholeMilliseconds
 
-                    // Atualizamos o estado na Main Thread para a UI
+                    val currentState = _state.value
+                    var newTimer60ft = currentState.timer60ft
+                    var newTimer100m = currentState.timer100m
+                    var newTimer201m = currentState.timer201m
+
+                    // --- Lógica para 0-100 km/h ---
+                    var newTimer0to100 = currentState.timer0to100
+                    var newIs0to100Completed = currentState.is0to100Completed
+                    if (!newIs0to100Completed) {
+                        if (_state.value.currentSpeed >= 100) {
+                            newTimer0to100 = elapsed
+                            cachedFormatted0to100 = formatMillis(elapsed) // Formata apenas na conclusão
+                            newIs0to100Completed = true // Marca como completo para não recalcular
+                            sendEffect(RaceTelemetryContract.Effect.Race0to100Completed(elapsed, formatMillis(elapsed)))
+                        } else {
+                            // Atualiza o timer enquanto a corrida está em andamento
+                            newTimer0to100 = elapsed
+                            cachedFormatted0to100 = formatMillis(elapsed)
+                        }
+                    }
+
+                    // --- Lógica para Distância (Splits) ---
+                    if (currentDistanceMeters >= 18.288 && newTimer60ft == null) {
+                        newTimer60ft = elapsed
+                        cachedFormatted60ft = formatMillis(elapsed) // Formata e guarda em cache
+                    }
+                    if (currentDistanceMeters >= 100.0 && newTimer100m == null) {
+                        newTimer100m = elapsed
+                        cachedFormatted100m = formatMillis(elapsed)
+                    }
+                    if (currentDistanceMeters >= 201.0 && newTimer201m == null) {
+                        newTimer201m = elapsed
+                        cachedFormatted201m = formatMillis(elapsed)
+                        // A corrida de 201m é a condição final, então paramos tudo.
+                        stopRecording() // Para o loop e atualiza isRecording
+                        sendEffect(RaceTelemetryContract.Effect.Race201mCompleted(elapsed, formatMillis(elapsed)))
+                    }
+
+                    cachedFormattedCurrentTimer = formatMillis(elapsed)
+
+                    // Atualiza o estado com todos os novos valores numa única operação
                     _state.update {
                         it.copy(
-                            timer0to100 = elapsed,
-                            formattedTimer0to100 = formatMillis(elapsed)
+                            currentDistance = currentDistanceMeters,
+                            currentTimer = elapsed,
+                            formattedCurrentTimer = cachedFormattedCurrentTimer,
+                            // 0-100
+                            timer0to100 = newTimer0to100,
+                            formattedTimer0to100 = cachedFormatted0to100,
+                            is0to100Completed = newIs0to100Completed,
+                            // Splits
+                            timer60ft = newTimer60ft,
+                            formatted60ft = cachedFormatted60ft,
+                            timer100m = newTimer100m,
+                            formatted100m = cachedFormatted100m,
+                            timer201m = newTimer201m,
+                            formatted201m = cachedFormatted201m
                         )
                     }
                 }
-                // Delay de 16ms aprox. 60fps para o cronômetro ser fluído
-                delay(16)
+                // Garante que o loop rode a ~60fps de forma mais precisa
+                delay((16 - tickStart.elapsedNow().inWholeMilliseconds).coerceAtLeast(1))
             }
         }
     }
@@ -171,7 +246,14 @@ class RaceTelemetryViewModel(
     private fun formatMillis(millis: Long): String {
         val seconds = millis / 1000
         val ms = millis % 1000
-        return "${seconds}.${ms.toString().padStart(3, '0')}"
+        
+        // Otimização: Evita a criação de strings desnecessárias pelo padStart num loop de 60fps
+        val msString = when {
+            ms < 10 -> "00$ms"
+            ms < 100 -> "0$ms"
+            else -> ms.toString()
+        }
+        return "$seconds.$msString"
     }
 
     private fun sendEffect(effect: RaceTelemetryContract.Effect) {
