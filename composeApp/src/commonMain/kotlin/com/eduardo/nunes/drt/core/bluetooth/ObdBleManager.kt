@@ -16,7 +16,8 @@ private const val PID_RPM = "010C"
 class ObdBleManager(
     private val scope: CoroutineScope
 ) {
-    private val _bluetoothStatus = MutableStateFlow<RaceTelemetryContract.BluetoothStatus>(RaceTelemetryContract.BluetoothStatus.Disconnected)
+    private val _bluetoothStatus =
+        MutableStateFlow<RaceTelemetryContract.BluetoothStatus>(RaceTelemetryContract.BluetoothStatus.Disconnected)
     val bluetoothStatus: StateFlow<RaceTelemetryContract.BluetoothStatus> = _bluetoothStatus
 
     private val _currentSpeed = MutableStateFlow(0)
@@ -47,7 +48,10 @@ class ObdBleManager(
                         val name = adv.name ?: ""
                         listOf("OBD", "uScan", "Vgate", "ELM").any { name.contains(it, true) }
                     }
-                    .onEach { _bluetoothStatus.value = RaceTelemetryContract.BluetoothStatus.DeviceFound(it) }
+                    .onEach {
+                        _bluetoothStatus.value =
+                            RaceTelemetryContract.BluetoothStatus.DeviceFound(it)
+                    }
                     .take(1)
                     .collect()
             } catch (e: Exception) {
@@ -66,14 +70,17 @@ class ObdBleManager(
                 launch {
                     p.state.collect { state ->
                         if (state is State.Disconnected) {
-                            _bluetoothStatus.value = RaceTelemetryContract.BluetoothStatus.Disconnected
+                            _bluetoothStatus.value =
+                                RaceTelemetryContract.BluetoothStatus.Disconnected
                             dataStreamJob?.cancel()
                         }
                     }
                 }
 
                 p.connect()
-                _bluetoothStatus.value = RaceTelemetryContract.BluetoothStatus.Connected(advertisement.name ?: "OBD Device")
+                _bluetoothStatus.value = RaceTelemetryContract.BluetoothStatus.Connected(
+                    advertisement.name ?: "OBD Device"
+                )
                 logTerminal("Connected to hardware!")
                 startDataStream(p)
             }.onFailure {
@@ -115,7 +122,11 @@ class ObdBleManager(
     private suspend fun sendPidRequest(p: Peripheral, pid: String) {
         runCatching {
             val cmd = "$pid\r".encodeToByteArray()
-            p.write(characteristicOf(OBD_SERVICE_UUID, OBD_TX_CHARACTERISTIC_UUID), cmd, WriteType.WithResponse)
+            p.write(
+                characteristicOf(OBD_SERVICE_UUID, OBD_TX_CHARACTERISTIC_UUID),
+                cmd,
+                WriteType.WithResponse
+            )
         }
     }
 

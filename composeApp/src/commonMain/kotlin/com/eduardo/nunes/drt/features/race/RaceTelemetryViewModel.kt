@@ -46,7 +46,7 @@ class RaceTelemetryViewModel(
                 _state.update { it.copy(currentRpm = rpm) }
             }
         }
-        
+
         // Observa os logs do terminal Bluetooth
         viewModelScope.launch {
             obdBleManager.logs.collect { newLogs ->
@@ -71,6 +71,7 @@ class RaceTelemetryViewModel(
                     obdBleManager.connectToDevice(currentStatus.device)
                 }
             }
+
             is RaceTelemetryContract.Intent.DisconnectDevice -> obdBleManager.disconnect()
             is RaceTelemetryContract.Intent.StopRace -> stopRecording()
             is RaceTelemetryContract.Intent.StartRace -> startRecording()
@@ -79,12 +80,12 @@ class RaceTelemetryViewModel(
 
     private fun startRecording() {
         if (_state.value.bluetoothStatus is RaceTelemetryContract.BluetoothStatus.Connected) {
-            _state.update { 
+            _state.update {
                 it.copy(
-                    isRecording = true, 
+                    isRecording = true,
                     timer0to100 = null,
                     formattedTimer0to100 = "0.000"
-                ) 
+                )
             }
             raceStartTime = null
         } else {
@@ -98,12 +99,12 @@ class RaceTelemetryViewModel(
     }
 
     private fun resetRace() {
-        _state.update { 
+        _state.update {
             it.copy(
-                isRecording = false, 
+                isRecording = false,
                 timer0to100 = null,
                 formattedTimer0to100 = "0.000"
-            ) 
+            )
         }
         raceStartTime = null
     }
@@ -125,22 +126,22 @@ class RaceTelemetryViewModel(
         raceStartTime?.let { startTime ->
             val elapsed = startTime.elapsedNow().inWholeMilliseconds
             val formatted = formatMillis(elapsed)
-            
-            _state.update { 
+
+            _state.update {
                 it.copy(
                     timer0to100 = elapsed,
                     formattedTimer0to100 = formatted
-                ) 
+                )
             }
 
             if (speed >= 100) {
                 // Chegou a 100 km/h, finaliza a puxada 0-100
                 _state.update {
                     it.copy(
-                        isRecording = false, 
+                        isRecording = false,
                         timer0to100 = elapsed,
                         formattedTimer0to100 = formatted
-                    ) 
+                    )
                 }
                 sendEffect(RaceTelemetryContract.Effect.RaceCompleted(elapsed, formatted))
                 raceStartTime = null
