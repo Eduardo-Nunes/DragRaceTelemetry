@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.*
 // OBD2 service and characteristic UUIDs (common for many ELM327-based adapters)
 private const val OBD_SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb"
 private const val OBD_RX_CHARACTERISTIC_UUID = "0000fff1-0000-1000-8000-00805f9b34fb"
-private const val OBD_TX_CHARACTERISTIC_UUID = "0000fff1-0000-1000-8000-00805f9b34fb"
+private const val OBD_TX_CHARACTERISTIC_UUID = "0000fff2-0000-1000-8000-00805f9b34fb"
 
 // PIDs for Speed and RPM
 private const val PID_SPEED = "010D"
@@ -90,14 +90,7 @@ class ObdBleManager(
                         advertisement.name ?: "OBD Device"
                     )
                     logTerminal("Connected Successfully!")
-                    delay(150)
-                    peripheral?.services?.forEach { service ->
-                        logTerminal("Service Found: ${service.serviceUuid}")
-                        service.characteristics.forEach { char ->
-                            logTerminal(" -> Char: ${char.characteristicUuid}")
-                        }
-                    }
-                    delay(150)
+                    delay(300)
                     startDataStream()
                 } else throw Exception("Connection Failed")
 
@@ -131,57 +124,48 @@ class ObdBleManager(
 
         for (command in initCommands) {
             sendPidRequest(command)
-            delay(300) // Dá tempo para o adaptador processar
+            delay(500) // Dá tempo para o adaptador processar
         }
     }
 
     private fun startDataStream() {
-        dataStreamJob?.cancel() // Cancel any previous data stream
+        dataStreamJob?.cancel()
         dataStreamJob = scope.launch {
-            logTerminal("Aguardando estabilização GATT...")
-            delay(250) // Pequeno delay para evitar o erro de "Service not found"
-            peripheral?.let { p ->
-                delay(250) // Pequeno delay para evitar o erro de "Service not found"
+            val p = peripheral ?: return@launch
+            
+            // 1. Lança o observador em uma corrotina separada para não bloquear o loop de TX
+            launch {
                 runCatching {
-                    logTerminal("Observing RX Characteristic...")
-                    // Enable notifications for the RX characteristic
+                    logTerminal("Observing RX (fff1)...")
                     p.observe(characteristicOf(OBD_SERVICE_UUID, OBD_RX_CHARACTERISTIC_UUID))
-                        .onEach { data ->
+                        .collect { data ->
                             val response = data.decodeToString()
                             logTerminal("RX: $response")
                             parseObdResponse(response)
                         }
-                        .catch { e ->
-                            logTerminal("Observe Error: ${e.message}")
-                            _bluetoothStatus.value =
-                                RaceTelemetryContract.BluetoothStatus.ConnectionFailed("Data stream error: ${e.message}")
-                            disconnect()
-                        }
-                        .collect()
-                    // 1. Inicializa o protocolo ELM327
-                    logTerminal("Initializing ELM327...")
-                    initializeObdAdapter()
                 }.onFailure { e ->
-                    logTerminal("Data Stream Failed: ${e.message}")
-                    _bluetoothStatus.value =
-                        RaceTelemetryContract.BluetoothStatus.ConnectionFailed("Failed to start data stream: ${e.message}")
+                    logTerminal("RX Error: ${e.message}")
                     disconnect()
                 }
+            }
 
-                // Continuously send PID requests
-                while (isActive && _bluetoothStatus.value is RaceTelemetryContract.BluetoothStatus.Connected) {
-                    try {
-                        sendPidRequest(PID_SPEED)
-                        delay(100) // Adjust delay as needed
-                        sendPidRequest(PID_RPM)
-                        delay(100) // Adjust delay as needed
-                    } catch (e: Exception) {
-                        logTerminal("PID Request Error: ${e.message}")
-                        _bluetoothStatus.value =
-                            RaceTelemetryContract.BluetoothStatus.ConnectionFailed("PID request error: ${e.message}")
-                        disconnect()
-                        break
-                    }
+            // 2. Inicializa o protocolo ELM327 via TX (fff2)
+            delay(500) // Estabilização
+            logTerminal("Initializing ELM327 via TX (fff2)...")
+            initializeObdAdapter()
+
+            // 3. Loop de Polling de PIDs
+            logTerminal("Starting PID Polling...")
+            while (isActive && _bluetoothStatus.value is RaceTelemetryContract.BluetoothStatus.Connected) {
+                try {
+                    sendPidRequest(PID_SPEED)
+                    delay(150)
+                    sendPidRequest(PID_RPM)
+                    delay(150)
+                } catch (e: Exception) {
+                    logTerminal("Polling Error: ${e.message}")
+                    disconnect()
+                    break
                 }
             }
         }
@@ -190,18 +174,18 @@ class ObdBleManager(
     private suspend fun sendPidRequest(pid: String) {
         peripheral?.let { p ->
             runCatching {
-                val command = "$pid\r".encodeToByteArray() // Add carriage return
-                p.write(characteristicOf(OBD_SERVICE_UUID, OBD_TX_CHARACTERISTIC_UUID), command)
+                val command = "$pid\r".encodeToByteArray()
+                p.write(characteristicOf(OBD_SERVICE_UUID, OBD_TX_CHARACTERISTIC_UUID), command, WriteType.WithResponse)
                 logTerminal("TX: $pid")
             }.onFailure { e ->
                 logTerminal("TX Failed ($pid): ${e.message}")
-                throw e // Re-throw to be caught by the dataStreamJob's catch block
+                throw e
             }
         }
     }
 
     private fun parseObdResponse(response: String) {
-        // Otimização: Filtra caracteres hexadecimais sem criar múltiplas strings intermediárias
+        // Otimização Bitwise para extração de dados
         val clean = StringBuilder(response.length)
         for (i in response.indices) {
             val c = response[i]
@@ -214,16 +198,12 @@ class ObdBleManager(
         if (data.length < 4) return
 
         runCatching {
-            // Verifica se é uma resposta positiva (0x41) para o PID solicitado
             if (data.startsWith("410D") && data.length >= 6) {
-                // Speed: 1 byte (A) -> km/h
                 _currentSpeed.value = parseHexByte(data, 4)
             } else if (data.startsWith("410C") && data.length >= 8) {
-                // RPM: 2 bytes (A, B) -> ((A * 256) + B) / 4
                 val a = parseHexByte(data, 4)
                 val b = parseHexByte(data, 6)
-
-                // Refatoração Bitwise: (A << 8 | B) >> 2 (Performance superior a mult/div)
+                // RPM Bitwise: ((A << 8) | B) >> 2
                 _currentRpm.value = ((a shl 8) or b) shr 2
             }
         }.onFailure {
@@ -231,10 +211,6 @@ class ObdBleManager(
         }
     }
 
-    /**
-     * Converte 2 caracteres hexadecimais em um Int usando operações bitwise.
-     * Evita alocações de substrings e o custo de toInt(16).
-     */
     private fun parseHexByte(s: String, offset: Int): Int {
         val high = hexCharToInt(s[offset])
         val low = hexCharToInt(s[offset + 1])
