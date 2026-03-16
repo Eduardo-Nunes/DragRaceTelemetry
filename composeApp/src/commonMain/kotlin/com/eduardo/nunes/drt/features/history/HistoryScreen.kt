@@ -68,7 +68,7 @@ fun HistoryScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(history.reversed()) { telemetry ->
+                    items(history.reversed(), key = { it.id }) { telemetry ->
                         TelemetryItem(telemetry)
                     }
                 }
@@ -101,17 +101,17 @@ fun TelemetryItem(telemetry: Telemetry) {
                     fontSize = 12.sp
                 )
             }
-            
+
             Spacer(Modifier.height(12.dp))
-            
+
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 TelemetryStat("0-100", "${telemetry.timer0to100}s")
                 TelemetryStat("60ft", "${telemetry.timer60ft}s")
                 TelemetryStat("201m", "${telemetry.timer201m}s")
             }
-            
+
             Spacer(Modifier.height(8.dp))
-            
+
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 TelemetryStat("Vel. Máx", "${telemetry.maxSpeed} km/h")
                 TelemetryStat("RPM Máx", "${telemetry.maxRpm}")

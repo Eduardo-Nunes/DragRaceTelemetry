@@ -188,8 +188,8 @@ fun StatusHeader(
             val statusText = when (targetStatus) {
                 is RaceTelemetryContract.BluetoothStatus.Disconnected -> "Desconectado"
                 is RaceTelemetryContract.BluetoothStatus.Scanning -> "Procurando OBD2..."
-                is RaceTelemetryContract.BluetoothStatus.DeviceFound -> "Dispositivo Encontrado! Conectando..."
-                is RaceTelemetryContract.BluetoothStatus.Connected -> "Conectado: ECU via OBD2 ${targetStatus.deviceName}"
+                is RaceTelemetryContract.BluetoothStatus.DeviceFound -> "Dispositivo Encontrado"
+                is RaceTelemetryContract.BluetoothStatus.Connected -> "Conectado: ${targetStatus.deviceName}"
                 is RaceTelemetryContract.BluetoothStatus.ConnectionFailed -> "Falha na Conexão"
             }
 
