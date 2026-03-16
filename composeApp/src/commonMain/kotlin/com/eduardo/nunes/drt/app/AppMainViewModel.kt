@@ -2,12 +2,15 @@ package com.eduardo.nunes.drt.app
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eduardo.nunes.drt.core.bluetooth.ObdBleManager
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
-class AppMainViewModel : ViewModel() {
+class AppMainViewModel(
+    private val obdBleManager: ObdBleManager
+) : ViewModel() {
 
     private val _effect = MutableSharedFlow<AppMainContract.Effect>()
     val effect: SharedFlow<AppMainContract.Effect> = _effect.asSharedFlow()
@@ -17,6 +20,7 @@ class AppMainViewModel : ViewModel() {
             when (intent) {
                 is AppMainContract.Intent.NavigateTo -> _effect.emit(AppMainContract.Effect.NavigateTo(intent.route))
                 is AppMainContract.Intent.NavigateBack -> _effect.emit(AppMainContract.Effect.NavigateBack)
+                is AppMainContract.Intent.ClearLogs -> obdBleManager.clearLogs()
             }
         }
     }

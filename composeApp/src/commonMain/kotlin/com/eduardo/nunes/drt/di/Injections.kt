@@ -16,7 +16,7 @@ val appModule = module {
     single { ObdBleManager(CoroutineScope(SupervisorJob() + Dispatchers.Default)) }
 
     // ViewModels: um por tela, e um principal para navegação
-    viewModel { AppMainViewModel() }
+    viewModel { AppMainViewModel(get()) }
     viewModel { RaceTelemetryViewModel(get()) }
     viewModel { SettingsViewModel() }
 }

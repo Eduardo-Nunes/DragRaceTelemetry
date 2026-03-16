@@ -83,7 +83,7 @@ class RaceTelemetryViewModel(
         if (raceStartTime != null) {
             val now = Clock.System.now()
             val local = now.toLocalDateTime(TimeZone.currentSystemDefault())
-            val dateStr = "${local.dayOfMonth.toString().padStart(2, '0')}/${local.monthNumber.toString().padStart(2, '0')} ${local.hour}:${local.minute.toString().padStart(2, '0')}"
+            val dateStr = "${local.day.toString().padStart(2, '0')}/${local.month.toString().padStart(2, '0')} ${local.hour}:${local.minute.toString().padStart(2, '0')}"
 
             val telemetry = Telemetry(
                 id = now.toEpochMilliseconds().toString(),
@@ -106,7 +106,6 @@ class RaceTelemetryViewModel(
             is RaceTelemetryContract.Intent.StopRace -> stopRecording()
             is RaceTelemetryContract.Intent.StartRace -> startRecording()
             is RaceTelemetryContract.Intent.ConnectToDevice -> connectToDevice()
-            is RaceTelemetryContract.Intent.ClearLogs -> obdBleManager.clearLogs()
         }
     }
 

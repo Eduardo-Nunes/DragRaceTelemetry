@@ -29,7 +29,9 @@ fun AppNavigation(
     appMainViewModel: AppMainViewModel,
     snackbarHostState: SnackbarHostState,
     coroutineScope: CoroutineScope,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isMenuOpen: Boolean,
+    onMenuClick: () -> Unit
 ) {
     // Ouve os eventos de Navegação vindos do AppMainViewModel
     LaunchedEffect(Unit) {
@@ -94,20 +96,8 @@ fun AppNavigation(
                         snackbarHostState.showSnackbar(message)
                     }
                 },
-                onNavigateToSettings = {
-                    appMainViewModel.handleIntent(
-                        AppMainContract.Intent.NavigateTo(
-                            "settings"
-                        )
-                    )
-                },
-                onNavigateToHistory = {
-                    appMainViewModel.handleIntent(
-                        AppMainContract.Intent.NavigateTo(
-                            "history"
-                        )
-                    )
-                }
+                isMenuOpen = isMenuOpen,
+                onMenuClick = onMenuClick
             )
         }
         composable("settings") {

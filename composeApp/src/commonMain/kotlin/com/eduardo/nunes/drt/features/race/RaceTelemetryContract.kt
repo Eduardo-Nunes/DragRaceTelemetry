@@ -44,7 +44,6 @@ interface RaceTelemetryContract {
         object DisconnectDevice : Intent()
         object StartRace : Intent()
         object StopRace : Intent()
-        object ClearLogs: Intent()
     }
 
     sealed class Effect {
