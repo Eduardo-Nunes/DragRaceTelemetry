@@ -15,6 +15,8 @@ interface RaceTelemetryContract {
         val bluetoothStatus: BluetoothStatus = BluetoothStatus.Disconnected,
         val currentSpeed: Int = 0,
         val currentRpm: Int = 0,
+        val maxSpeed: Int = 0,
+        val maxRpm: Int = 0,
         val isRecording: Boolean = false,
         val showTerminalLogs: Boolean = false,
         val terminalLogs: List<String> = emptyList(),

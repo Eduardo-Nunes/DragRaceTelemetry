@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,7 +28,8 @@ import kotlinx.coroutines.flow.collectLatest
 fun RaceDashboardScreen(
     viewModel: RaceTelemetryViewModel,
     onShowSnackbar: (String) -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToHistory: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
 
@@ -52,7 +54,8 @@ fun RaceDashboardScreen(
     RaceDashboardContent(
         state = state,
         onIntent = viewModel::handleIntent,
-        onNavigateToSettings = onNavigateToSettings
+        onNavigateToSettings = onNavigateToSettings,
+        onNavigateToHistory = onNavigateToHistory
     )
 }
 
@@ -60,7 +63,8 @@ fun RaceDashboardScreen(
 fun RaceDashboardContent(
     state: RaceTelemetryContract.State,
     onIntent: (RaceTelemetryContract.Intent) -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToHistory: () -> Unit
 ) {
     // Forçando um Dark Theme para o Dashboard Automotivo
     MaterialTheme(colorScheme = darkColorScheme()) {
@@ -99,6 +103,13 @@ fun RaceDashboardContent(
                             modifier = Modifier.align(Alignment.CenterEnd),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            IconButton(onClick = onNavigateToHistory) {
+                                Icon(
+                                    imageVector = Icons.Default.History,
+                                    contentDescription = "Histórico",
+                                    tint = Color.White
+                                )
+                            }
                             if (state.showTerminalLogs) {
                                 IconButton(onClick = { onIntent(RaceTelemetryContract.Intent.ClearLogs) }) {
                                     Icon(
@@ -246,7 +257,7 @@ fun TerminalLogComponent(logs: List<String>) {
             state = listState,
             modifier = Modifier.fillMaxSize()
         ) {
-            items(logs, key = { it.hashCode() }) { log ->
+            items(logs) { log ->
                 Text(
                     text = log,
                     color = Color.Green,
@@ -356,7 +367,7 @@ fun RaceSplitsSection(
             }
         }
         
-        Divider(color = Color.DarkGray)
+        HorizontalDivider(color = Color.DarkGray)
         
         // Grid de Etapas
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -453,10 +464,12 @@ fun RaceDashboardPreview() {
                 "TX: 010D",
                 "RX: 41 0D 4A",
                 "TX: 010C",
-                "RX: 41 0C 11 94"
+                "RX: 41 0C 11 94",
+                "TX: 010D"
             )
         ),
         onIntent = {},
-        onNavigateToSettings = {}
+        onNavigateToSettings = {},
+        onNavigateToHistory = {}
     )
 }

@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.eduardo.nunes.drt.features.history.HistoryScreen
 import com.eduardo.nunes.drt.features.race.RaceDashboardScreen
 import com.eduardo.nunes.drt.features.race.RaceTelemetryViewModel
 import com.eduardo.nunes.drt.features.settings.SettingsScreen
@@ -99,6 +100,13 @@ fun AppNavigation(
                             "settings"
                         )
                     )
+                },
+                onNavigateToHistory = {
+                    appMainViewModel.handleIntent(
+                        AppMainContract.Intent.NavigateTo(
+                            "history"
+                        )
+                    )
                 }
             )
         }
@@ -108,6 +116,13 @@ fun AppNavigation(
 
             SettingsScreen(
                 viewModel = settingsViewModel,
+                onBack = {
+                    appMainViewModel.handleIntent(AppMainContract.Intent.NavigateBack)
+                }
+            )
+        }
+        composable("history") {
+            HistoryScreen(
                 onBack = {
                     appMainViewModel.handleIntent(AppMainContract.Intent.NavigateBack)
                 }
