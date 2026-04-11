@@ -18,14 +18,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eduardo.nunes.drt.core.model.Telemetry
-import com.eduardo.nunes.drt.core.state.AppSharedState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
+    viewModel: HistoryViewModel,
     onBack: () -> Unit
 ) {
-    val history by AppSharedState.telemetryHistory.collectAsState()
+    val history by viewModel.telemetryHistory.collectAsState()
 
     MaterialTheme(colorScheme = darkColorScheme()) {
         Scaffold(

@@ -6,7 +6,9 @@ import com.eduardo.nunes.drt.core.state.AppSharedState
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class SettingsViewModel : ViewModel() {
+class SettingsViewModel(
+    private val appSharedState: AppSharedState
+) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsContract.State())
     val state: StateFlow<SettingsContract.State> = _state.asStateFlow()
@@ -14,7 +16,7 @@ class SettingsViewModel : ViewModel() {
     init {
         // Observa a fonte da verdade global
         viewModelScope.launch {
-            AppSharedState.showTerminalLogs.collect { show ->
+            appSharedState.showTerminalLogs.collect { show ->
                 _state.update { it.copy(showTerminalLogs = show) }
             }
         }
@@ -24,7 +26,7 @@ class SettingsViewModel : ViewModel() {
         when (intent) {
             is SettingsContract.Intent.ToggleTerminalLogs -> {
                 // Atualiza o objeto compartilhado. Todos os ViewModels que o observam reagirão.
-                AppSharedState.showTerminalLogs.value = intent.show
+                appSharedState.showTerminalLogs.value = intent.show
             }
         }
     }

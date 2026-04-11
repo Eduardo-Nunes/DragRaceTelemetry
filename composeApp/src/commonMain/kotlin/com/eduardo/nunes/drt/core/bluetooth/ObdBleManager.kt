@@ -1,11 +1,11 @@
 package com.eduardo.nunes.drt.core.bluetooth
 
 import com.eduardo.nunes.drt.features.race.RaceTelemetryContract
+import com.eduardo.nunes.drt.core.state.AppSharedState
 import com.juul.kable.*
-import kotlinx.collections.immutable.PersistentList
-import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlin.time.Duration.Companion.milliseconds
 
 // OBD2 service and characteristic UUIDs (Padrão para a maioria dos ELM327 fff0)
 private const val OBD_SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb"
@@ -16,6 +16,7 @@ private const val PID_SPEED = "010D"
 private const val PID_RPM = "010C"
 
 class ObdBleManager(
+    private val sharedState: AppSharedState,
     private val scope: CoroutineScope
 ) {
     private val _bluetoothStatus = MutableStateFlow<RaceTelemetryContract.BluetoothStatus>(RaceTelemetryContract.BluetoothStatus.Disconnected)
@@ -26,38 +27,14 @@ class ObdBleManager(
 
     private val _currentRpm = MutableStateFlow(0)
     val currentRpm: StateFlow<Int> = _currentRpm
-
-    private val _logs = MutableStateFlow<PersistentList<String>>(persistentListOf())
-
-    val logs: StateFlow<List<String>> = _logs.asStateFlow()
-
     private var peripheral: Peripheral? = null
     private var dataStreamJob: Job? = null
     private val scanner = Scanner()
 
-    private fun logTerminal(message: String) {
-        val timestamp = " > "
-        val formattedMessage = "$timestamp$message"
-
-        _logs.update { currentLogs ->
-            var newLogs = currentLogs.add(formattedMessage)
-
-            if (newLogs.size > 256) {
-                newLogs = newLogs.removeAt(0)
-            }
-
-            newLogs
-        }
-    }
-
-    fun clearLogs(){
-        _logs.value = persistentListOf()
-    }
-
     fun startScanning() {
         if (_bluetoothStatus.value is RaceTelemetryContract.BluetoothStatus.Scanning) return
         _bluetoothStatus.value = RaceTelemetryContract.BluetoothStatus.Scanning
-        logTerminal("Scanning for OBD2 devices...")
+        sharedState.logTerminal("Scanning for OBD2 devices...")
 
         scope.launch {
             try {
@@ -67,13 +44,13 @@ class ObdBleManager(
                         listOf("OBD", "uScan", "Vgate", "ELM").any { name.contains(it, true) }
                     }
                     .onEach {
-                        logTerminal("Device Found: ${it.name}")
+                        sharedState.logTerminal("Device Found: ${it.name}")
                         _bluetoothStatus.value = RaceTelemetryContract.BluetoothStatus.DeviceFound(it)
                     }
                     .take(1)
                     .collect()
             } catch (e: Exception) {
-                logTerminal("Scan Error: ${e.message}")
+                sharedState.logTerminal("Scan Error: ${e.message}")
                 _bluetoothStatus.value = RaceTelemetryContract.BluetoothStatus.Disconnected
             }
         }
@@ -82,13 +59,13 @@ class ObdBleManager(
     fun connectToDevice(advertisement: Advertisement) {
         scope.launch {
             runCatching {
-                logTerminal("Connecting to ${advertisement.name}...")
+                sharedState.logTerminal("Connecting to ${advertisement.name}...")
                 val p = scope.peripheral(advertisement)
                 peripheral = p
 
                 launch {
                     p.state.collect { state ->
-                        logTerminal("GATT State: $state")
+                        sharedState.logTerminal("GATT State: $state")
                         if (state is State.Disconnected) {
                             _bluetoothStatus.value = RaceTelemetryContract.BluetoothStatus.Disconnected
                             dataStreamJob?.cancel()
@@ -101,22 +78,22 @@ class ObdBleManager(
                     _bluetoothStatus.value = RaceTelemetryContract.BluetoothStatus.Connected(
                         advertisement.name ?: "OBD Device"
                     )
-                    logTerminal("Connected Successfully!")
-                    delay(120)
+                    sharedState.logTerminal("Connected Successfully!")
+                    delay(120.milliseconds)
                     peripheral?.services?.forEach { service ->
-                        logTerminal("Service Found: ${service.serviceUuid}")
+                        sharedState.logTerminal("Service Found: ${service.serviceUuid}")
                         service.characteristics.forEach { char ->
-                            logTerminal(" -> Char: ${char.characteristicUuid}")
+                            sharedState.logTerminal(" -> Char: ${char.characteristicUuid}")
                         }
                     }
                     startDataStream(p)
                 } else throw Exception("Connection Failed")
 
 //                _bluetoothStatus.value = RaceTelemetryContract.BluetoothStatus.Connected(advertisement.name ?: "OBD Device")
-//                logTerminal("SUCCESS: Connected to hardware!")
+//                AppSharedState.logTerminal("SUCCESS: Connected to hardware!")
 //                startDataStream(p)
             }.onFailure { e ->
-                logTerminal("Conn Failed: ${e.message}")
+                sharedState.logTerminal("Conn Failed: ${e.message}")
                 _bluetoothStatus.value = RaceTelemetryContract.BluetoothStatus.Disconnected
             }
         }
@@ -132,28 +109,28 @@ class ObdBleManager(
                 p.observe(rxChar).collect { data ->
                     val response = data.decodeToString().trim()
                     if (response.isNotEmpty()) {
-                        logTerminal("RX Raw: $response")
+                        sharedState.logTerminal("RX Raw: $response")
                         parseObdResponse(response)
                     }
                 }
             }
 
             // 2. Inicialização ELM327
-            delay(500)
+            delay(500.milliseconds)
             val initCommands = listOf("ATZ", "ATE0", "ATL0", "ATSP0")
             initCommands.forEach { cmd ->
-                logTerminal("TX Init: $cmd")
+                sharedState.logTerminal("TX Init: $cmd")
                 sendPidRequest(p, cmd)
-                delay(300)
+                delay(300.milliseconds)
             }
 
             // 3. Loop de Telemetria (Polling de alta frequência)
-            logTerminal("Starting Telemetry Loop...")
+            sharedState.logTerminal("Starting Telemetry Loop...")
             while (isActive && _bluetoothStatus.value is RaceTelemetryContract.BluetoothStatus.Connected) {
                 sendPidRequest(p, PID_SPEED)
-                delay(120) // Ajustado para evitar buffer overflow em clones ELM
+                delay(120.milliseconds) // Ajustado para evitar buffer overflow em clones ELM
                 sendPidRequest(p, PID_RPM)
-                delay(120)
+                delay(120.milliseconds)
             }
         }
     }
@@ -164,7 +141,7 @@ class ObdBleManager(
             val cmd = "$pid\r".encodeToByteArray()
             p.write(txChar, cmd, WriteType.WithResponse)
         } catch (e: Exception) {
-            logTerminal("TX Error ($pid): ${e.message}")
+            sharedState.logTerminal("TX Error ($pid): ${e.message}")
         }
     }
 
@@ -183,9 +160,9 @@ class ObdBleManager(
                     // Se o carro está parado e deu 255, pode ser lixo de memória do buffer.
                     if (speed < 255) {
                         _currentSpeed.value = speed
-                        logTerminal("Parsed Speed: $speed km/h")
+                        sharedState.logTerminal("Parsed Speed: $speed km/h")
                     } else if (speed == 255) {
-                        logTerminal("Speed Warning: 255 received (Ignored)")
+                        sharedState.logTerminal("Speed Warning: 255 received (Ignored)")
                     }
                 }
             }
@@ -200,18 +177,18 @@ class ObdBleManager(
                     // Cálculo bitwise robusto: (A * 256 + B) / 4
                     val rpm = ((a shl 8) or b) / 4
                     _currentRpm.value = rpm
-                    logTerminal("Parsed RPM: $rpm")
+                    sharedState.logTerminal("Parsed RPM: $rpm")
                 }
             }
         } catch (e: Exception) {
-            logTerminal("Parser Error: ${e.message} in '$data'")
+            sharedState.logTerminal("Parser Error: ${e.message} in '$data'")
         }
     }
 
     fun disconnect() {
         dataStreamJob?.cancel()
         scope.launch {
-            logTerminal("Disconnecting...")
+            sharedState.logTerminal("Disconnecting...")
             peripheral?.disconnect()
             peripheral = null
             _bluetoothStatus.value = RaceTelemetryContract.BluetoothStatus.Disconnected

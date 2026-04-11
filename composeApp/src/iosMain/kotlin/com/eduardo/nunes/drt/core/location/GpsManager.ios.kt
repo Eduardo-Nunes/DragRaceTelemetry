@@ -10,6 +10,7 @@ import platform.CoreLocation.kCLLocationAccuracyBestForNavigation
 import platform.Foundation.NSError
 import platform.darwin.NSObject
 
+@Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
 actual class GpsManager : NSObject(), CLLocationManagerDelegateProtocol {
     private val locationManager = CLLocationManager()
     private val _currentSpeed = MutableStateFlow(0)

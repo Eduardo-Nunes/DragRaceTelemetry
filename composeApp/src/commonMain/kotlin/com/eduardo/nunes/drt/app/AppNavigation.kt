@@ -13,6 +13,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.eduardo.nunes.drt.features.history.HistoryScreen
+import com.eduardo.nunes.drt.features.history.HistoryViewModel
 import com.eduardo.nunes.drt.features.race.RaceDashboardScreen
 import com.eduardo.nunes.drt.features.race.RaceTelemetryViewModel
 import com.eduardo.nunes.drt.features.settings.SettingsScreen
@@ -112,7 +113,9 @@ fun AppNavigation(
             )
         }
         composable("history") {
+            val historyViewModel = koinViewModel<HistoryViewModel>()
             HistoryScreen(
+                viewModel = historyViewModel,
                 onBack = {
                     appMainViewModel.handleIntent(AppMainContract.Intent.NavigateBack)
                 }

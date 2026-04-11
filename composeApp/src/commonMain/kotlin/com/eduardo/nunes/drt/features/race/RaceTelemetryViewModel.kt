@@ -20,6 +20,7 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 class RaceTelemetryViewModel(
+    private val appSharedState: AppSharedState,
     private val obdBleManager: ObdBleManager,
     private val gpsManager: GpsManager
 ) : ViewModel() {
@@ -85,10 +86,10 @@ class RaceTelemetryViewModel(
 
         // Logs e Configurações
         viewModelScope.launch {
-            obdBleManager.logs.collect { newLogs -> _state.update { it.copy(terminalLogs = newLogs) } }
+            appSharedState.logs.collect { newLogs -> _state.update { it.copy(terminalLogs = newLogs) } }
         }
         viewModelScope.launch {
-            AppSharedState.showTerminalLogs.collect { show -> _state.update { it.copy(showTerminalLogs = show) } }
+            appSharedState.showTerminalLogs.collect { show -> _state.update { it.copy(showTerminalLogs = show) } }
         }
     }
 
@@ -109,7 +110,7 @@ class RaceTelemetryViewModel(
                 maxSpeed = currentState.maxSpeed,
                 maxRpm = currentState.maxRpm
             )
-            AppSharedState.addTelemetry(telemetry)
+            appSharedState.addTelemetry(telemetry)
         }
     }
 
