@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eduardo.nunes.drt.core.ui.utils.KeepScreenOn
 import com.eduardo.nunes.drt.plataform.RequireBluetoothPermissions
+import com.eduardo.nunes.drt.plataform.RequireLocationPermissions
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -52,12 +53,14 @@ fun RaceDashboardScreen(
         }
     }
     RequireBluetoothPermissions {
-        RaceDashboardContent(
-            state = state,
-            onIntent = viewModel::handleIntent,
-            isMenuOpen = isMenuOpen,
-            onMenuClick = onMenuClick
-        )
+        RequireLocationPermissions {
+            RaceDashboardContent(
+                state = state,
+                onIntent = viewModel::handleIntent,
+                isMenuOpen = isMenuOpen,
+                onMenuClick = onMenuClick
+            )
+        }
     }
 }
 

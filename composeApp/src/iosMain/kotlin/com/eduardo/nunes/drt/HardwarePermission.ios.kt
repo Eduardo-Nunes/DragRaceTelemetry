@@ -8,3 +8,9 @@ actual fun RequireBluetoothPermissions(content: @Composable () -> Unit) {
     // de permissões de Bluetooth quando tentamos inicializar o Scanner.
     content()
 }
+
+@Composable
+actual fun RequireLocationPermissions(content: @Composable () -> Unit) {
+    // CoreLocation lida com permissão via iOS settings
+    content()
+}

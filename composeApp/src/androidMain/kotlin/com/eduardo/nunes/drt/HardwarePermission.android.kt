@@ -68,7 +68,63 @@ actual fun RequireBluetoothPermissions(content: @Composable () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Permissões de Bluetooth e Localização são necessárias para conectar ao adaptador OBD2.",
+                    text = "Permissões de Bluetooth são necessárias para conectar ao adaptador OBD2.",
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = { launcher.launch(permissions) }) {
+                    Text("Conceder Permissões")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+actual fun RequireLocationPermissions(content: @Composable () -> Unit) {
+    val context = LocalContext.current
+    val permissions = arrayOf(
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION
+    )
+
+    var isGranted by remember {
+        mutableStateOf(
+            permissions.any {
+                ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+            }
+        )
+    }
+
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        isGranted = result.values.any { it }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!isGranted) {
+            launcher.launch(permissions)
+        }
+    }
+
+    if (isGranted) {
+        content()
+    } else {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Permissões de Localização são necessárias para telemetria de velocidade.",
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onBackground
                 )

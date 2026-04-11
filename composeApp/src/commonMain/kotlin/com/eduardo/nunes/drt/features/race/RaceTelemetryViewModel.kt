@@ -3,6 +3,7 @@ package com.eduardo.nunes.drt.features.race
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eduardo.nunes.drt.core.bluetooth.ObdBleManager
+import com.eduardo.nunes.drt.core.location.GpsManager
 import com.eduardo.nunes.drt.core.model.Telemetry
 import com.eduardo.nunes.drt.core.state.AppSharedState
 import kotlinx.coroutines.Dispatchers
@@ -14,11 +15,13 @@ import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 class RaceTelemetryViewModel(
-    private val obdBleManager: ObdBleManager
+    private val obdBleManager: ObdBleManager,
+    private val gpsManager: GpsManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RaceTelemetryContract.State())
@@ -34,18 +37,29 @@ class RaceTelemetryViewModel(
         // Observa o status do Bluetooth - SALVA AO DESCONECTAR
         viewModelScope.launch {
             obdBleManager.bluetoothStatus.collect { status ->
-                if (status is RaceTelemetryContract.BluetoothStatus.Disconnected && _state.value.isRecording) {
-                    saveCurrentRaceToHistory()
-                }
                 _state.update { it.copy(bluetoothStatus = status) }
-                if (status is RaceTelemetryContract.BluetoothStatus.Disconnected) {
-                    resetRace()
+
+                when (status) {
+                    is RaceTelemetryContract.BluetoothStatus.Disconnected -> {
+                        if (_state.value.isRecording) saveCurrentRaceToHistory()
+                        resetRace()
+                        gpsManager.stopTracking()
+                    }
+                    is RaceTelemetryContract.BluetoothStatus.Connected -> {
+                        gpsManager.startTracking()
+                    }
+                    else -> Unit
                 }
             }
         }
 
-        // Observa a velocidade e rastreia V-MAX
+        // Observa a velocidade combinada do OBD2 e GPS
         viewModelScope.launch {
+//            combine(obdBleManager.currentSpeed, gpsManager.currentSpeed) { obdSpeed, gpsSpeed ->
+                // Usa a velocidade do GPS se a do OBD for zero ou ausente, caso contrário prefere OBD,
+                // ou simplesmente o maior valor para garantir captura rápida
+//                maxOf(obdSpeed, gpsSpeed)
+//            }
             obdBleManager.currentSpeed.collect { speed ->
                 _state.update { 
                     it.copy(
@@ -218,7 +232,7 @@ class RaceTelemetryViewModel(
                         )
                     }
                 }
-                delay(16)
+                delay(16.milliseconds)
             }
         }
     }
