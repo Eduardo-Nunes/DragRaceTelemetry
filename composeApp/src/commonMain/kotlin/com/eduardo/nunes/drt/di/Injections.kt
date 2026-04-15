@@ -24,7 +24,7 @@ val appModule = module {
 
     // ViewModels
     viewModel { AppMainViewModel(get()) }
-    viewModel { RaceTelemetryViewModel(get(), get(), get()) }
+    viewModel { RaceTelemetryViewModel(get(), get(), get(), get()) }
     viewModel { HistoryViewModel(get()) }
     viewModel { SettingsViewModel(get()) }
 }

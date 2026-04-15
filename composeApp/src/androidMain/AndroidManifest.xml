@@ -9,10 +9,8 @@
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
 
-    <!-- Required for BLE scanning on Android 6.0 (API level 23) and above -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <!-- Optional: If your app doesn't need precise location, you can use COARSE_LOCATION instead. -->
-    <!-- <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" /> -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
 
     <application
         android:allowBackup="true"

@@ -21,10 +21,14 @@ actual class GpsManager : KoinComponent, LocationListener {
 
     @SuppressLint("MissingPermission")
     actual fun startTracking() {
+        if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            return
+        }
+
         try {
             locationManager.requestLocationUpdates(
                 LocationManager.GPS_PROVIDER,
-                100, // 100ms
+                1000L, // 1000ms (1 segundo). É o limite realista do hardware GPS.
                 0f, // 0 metros
                 this
             )

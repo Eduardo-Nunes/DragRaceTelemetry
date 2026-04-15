@@ -6,6 +6,7 @@ import com.eduardo.nunes.drt.core.bluetooth.ObdBleManager
 import com.eduardo.nunes.drt.core.location.GpsManager
 import com.eduardo.nunes.drt.core.model.Telemetry
 import com.eduardo.nunes.drt.core.state.AppSharedState
+import com.eduardo.nunes.drt.core.velocity.VelocityFusionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -22,7 +23,8 @@ import kotlin.time.TimeSource
 class RaceTelemetryViewModel(
     private val appSharedState: AppSharedState,
     private val obdBleManager: ObdBleManager,
-    private val gpsManager: GpsManager
+    private val gpsManager: GpsManager,
+    private val velocityFusionManager: VelocityFusionManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RaceTelemetryContract.State())
@@ -35,6 +37,7 @@ class RaceTelemetryViewModel(
     private var timerJob: Job? = null
 
     init {
+        gpsManager.startTracking()
         // Observa o status do Bluetooth - SALVA AO DESCONECTAR
         viewModelScope.launch {
             obdBleManager.bluetoothStatus.collect { status ->
@@ -54,14 +57,24 @@ class RaceTelemetryViewModel(
             }
         }
 
-        // Observa a velocidade combinada do OBD2 e GPS
+        // Passa a velocidade do OBD2 pro Fusion Manager
         viewModelScope.launch {
-//            combine(obdBleManager.currentSpeed, gpsManager.currentSpeed) { obdSpeed, gpsSpeed ->
-                // Usa a velocidade do GPS se a do OBD for zero ou ausente, caso contrário prefere OBD,
-                // ou simplesmente o maior valor para garantir captura rápida
-//                maxOf(obdSpeed, gpsSpeed)
-//            }
             obdBleManager.currentSpeed.collect { speed ->
+                velocityFusionManager.updateObdSpeed(speed.toDouble())
+            }
+        }
+
+        // Passa a velocidade do GPS pro Fusion Manager
+        viewModelScope.launch {
+            gpsManager.currentSpeed.collect { speed ->
+                velocityFusionManager.updateGpsSpeed(speed.toDouble())
+            }
+        }
+
+        // Observa a velocidade *FUNDIDA* e a usa no app
+        viewModelScope.launch {
+            velocityFusionManager.fusedVelocity.collect { fusedSpeedDouble ->
+                val speed = fusedSpeedDouble.toInt()
                 _state.update { 
                     it.copy(
                         currentSpeed = speed,

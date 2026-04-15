@@ -19,12 +19,14 @@ import androidx.navigation.compose.rememberNavController
 import com.eduardo.nunes.drt.di.appModule
 import org.koin.compose.KoinApplication
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.logger.Level
+import org.koin.dsl.koinConfiguration
 
 @Composable
 fun App() {
-    KoinApplication(application = {
+    KoinApplication(configuration = koinConfiguration {
         modules(appModule)
-    }) {
+    }, logLevel = Level.INFO, content = {
         MaterialTheme(colorScheme = darkColorScheme()) {
             val snackbarHostState = remember { SnackbarHostState() }
             val coroutineScope = rememberCoroutineScope()
@@ -86,5 +88,5 @@ fun App() {
                 )
             }
         }
-    }
+    })
 }
