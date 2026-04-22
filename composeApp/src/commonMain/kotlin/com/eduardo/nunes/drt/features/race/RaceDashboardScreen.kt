@@ -11,7 +11,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eduardo.nunes.drt.core.ui.utils.KeepScreenOn
 import com.eduardo.nunes.drt.plataform.RequireBluetoothPermissions
-import com.eduardo.nunes.drt.plataform.RequireLocationPermissions
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -53,14 +52,14 @@ fun RaceDashboardScreen(
         }
     }
     RequireBluetoothPermissions {
-        RequireLocationPermissions {
+//        RequireLocationPermissions {
             RaceDashboardContent(
                 state = state,
                 onIntent = viewModel::handleIntent,
                 isMenuOpen = isMenuOpen,
                 onMenuClick = onMenuClick
             )
-        }
+//        }
     }
 }
 
@@ -102,7 +101,7 @@ fun RaceDashboardContent(
                         ) {
                             IconButton(onClick = onMenuClick) {
                                 Icon(
-                                    imageVector = Icons.Default.Menu,
+                                    imageVector = Icons.Filled.ChevronRight,
                                     contentDescription = "Menu",
                                     tint = Color.White
                                 )

@@ -7,14 +7,13 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CleaningServices
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.rememberNavController
 import com.eduardo.nunes.drt.di.appModule
 import org.koin.compose.KoinApplication
@@ -33,48 +32,34 @@ fun App() {
             val appMainViewModel = koinViewModel<AppMainViewModel>()
             val navController = rememberNavController()
 
-            var showNavigationRail by remember { mutableStateOf(false) }
+            val state by appMainViewModel.state.collectAsState()
             Row {
                 AnimatedVisibility(
-                    visible = showNavigationRail,
+                    visible = state.showNavigationRail,
                     enter = slideInHorizontally(initialOffsetX = { -it }) + expandHorizontally(),
                     exit = slideOutHorizontally(targetOffsetX = { -it }) + shrinkHorizontally()
                 ) {
                     NavigationRail(
-                        modifier = Modifier.fillMaxHeight(),
+                        modifier = Modifier.fillMaxHeight().padding(top = 12.dp),
                         header = {
-                            IconButton(onClick = { showNavigationRail = false }) {
-                                Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                            IconButton(onClick = {
+                                appMainViewModel.handleIntent(AppMainContract.Intent.OpenCloseNavRail)
+                            }) {
+                                Icon(Icons.Filled.ChevronLeft, contentDescription = "Menu")
                             }
                         }
                     ) {
-                        NavigationRailItem(
-                            icon = { Icon(Icons.Default.History, contentDescription = "Histórico") },
-                            label = { Text("Histórico") },
-                            selected = false,
-                            onClick = {
-                                appMainViewModel.handleIntent(AppMainContract.Intent.NavigateTo("history"))
-                                showNavigationRail = false
-                            }
-                        )
-                        NavigationRailItem(
-                            icon = { Icon(Icons.Default.Settings, contentDescription = "Configurações") },
-                            label = { Text("Configurações") },
-                            selected = false,
-                            onClick = {
-                                appMainViewModel.handleIntent(AppMainContract.Intent.NavigateTo("settings"))
-                                showNavigationRail = false
-                            }
-                        )
-                        NavigationRailItem(
-                            icon = { Icon(Icons.Default.CleaningServices, contentDescription = "Limpar Logs") },
-                            label = { Text("Limpar Logs") },
-                            selected = false,
-                            onClick = {
-                                appMainViewModel.handleIntent(AppMainContract.Intent.ClearLogs)
-                                showNavigationRail = false
-                            }
-                        )
+                        state.menuItems.forEach { item ->
+                            NavigationRailItem(
+                                icon = {
+                                    Icon(item.icon, contentDescription = item.description)
+                                },
+                                label = { Text(item.title) },
+                                selected = false,
+                                onClick = {
+                                    appMainViewModel.handleIntent(item.intent)
+                                })
+                        }
                     }
                 }
 
@@ -83,9 +68,8 @@ fun App() {
                     appMainViewModel = appMainViewModel,
                     snackbarHostState = snackbarHostState,
                     coroutineScope = coroutineScope,
-                    isMenuOpen = showNavigationRail,
-                    onMenuClick = { showNavigationRail = !showNavigationRail }
-                )
+                    isMenuOpen = state.showNavigationRail,
+                    onMenuClick = { appMainViewModel.handleIntent(AppMainContract.Intent.OpenCloseNavRail) })
             }
         }
     })
