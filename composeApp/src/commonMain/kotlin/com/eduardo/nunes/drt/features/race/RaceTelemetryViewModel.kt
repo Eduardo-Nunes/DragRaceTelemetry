@@ -2,6 +2,7 @@ package com.eduardo.nunes.drt.features.race
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eduardo.nunes.drt.core.bluetooth.BluetoothStatus
 import com.eduardo.nunes.drt.core.bluetooth.ObdBleManager
 import com.eduardo.nunes.drt.core.location.GpsManager
 import com.eduardo.nunes.drt.core.model.Telemetry
@@ -44,12 +45,12 @@ class RaceTelemetryViewModel(
                 _state.update { it.copy(bluetoothStatus = status) }
 
                 when (status) {
-                    is RaceTelemetryContract.BluetoothStatus.Disconnected -> {
+                    is BluetoothStatus.Disconnected -> {
                         if (_state.value.isRecording) saveCurrentRaceToHistory()
                         resetRace()
                         gpsManager.stopTracking()
                     }
-                    is RaceTelemetryContract.BluetoothStatus.Connected -> {
+                    is BluetoothStatus.Connected -> {
                         gpsManager.startTracking()
                     }
                     else -> Unit
@@ -139,13 +140,13 @@ class RaceTelemetryViewModel(
 
     private fun connectToDevice() {
         val currentStatus = _state.value.bluetoothStatus
-        if (currentStatus is RaceTelemetryContract.BluetoothStatus.DeviceFound) {
+        if (currentStatus is BluetoothStatus.DeviceFound) {
             obdBleManager.connectToDevice(currentStatus.device)
         }
     }
 
     private fun startRecording() {
-        if (_state.value.bluetoothStatus is RaceTelemetryContract.BluetoothStatus.Connected) {
+        if (_state.value.bluetoothStatus is BluetoothStatus.Connected) {
             _state.update {
                 it.copy(
                     isRecording = true,

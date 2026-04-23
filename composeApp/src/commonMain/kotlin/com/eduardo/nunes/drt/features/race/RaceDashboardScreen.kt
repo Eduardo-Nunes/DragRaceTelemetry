@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eduardo.nunes.drt.core.bluetooth.BluetoothStatus
 import com.eduardo.nunes.drt.core.ui.utils.KeepScreenOn
 import com.eduardo.nunes.drt.plataform.RequireBluetoothPermissions
 import kotlinx.coroutines.flow.collectLatest
@@ -162,16 +163,16 @@ fun RaceDashboardContent(
 
 @Composable
 fun StatusHeader(
-    status: RaceTelemetryContract.BluetoothStatus,
+    status: BluetoothStatus,
     modifier: Modifier = Modifier,
     onScanClick: () -> Unit,
     onConnectClick: () -> Unit,
     onDisconnectClick: () -> Unit
 ) {
     val onClick: () -> Unit = when (status) {
-        is RaceTelemetryContract.BluetoothStatus.Connected -> onDisconnectClick
-        is RaceTelemetryContract.BluetoothStatus.DeviceFound -> onConnectClick
-        is RaceTelemetryContract.BluetoothStatus.Scanning -> {{}}
+        is BluetoothStatus.Connected -> onDisconnectClick
+        is BluetoothStatus.DeviceFound -> onConnectClick
+        is BluetoothStatus.Scanning -> {{}}
         else -> onScanClick
     }
 
@@ -188,25 +189,27 @@ fun StatusHeader(
             label = "status_header_animation"
         ) { targetStatus ->
             val statusText = when (targetStatus) {
-                is RaceTelemetryContract.BluetoothStatus.Disconnected -> "Desconectado"
-                is RaceTelemetryContract.BluetoothStatus.Scanning -> "Procurando OBD2..."
-                is RaceTelemetryContract.BluetoothStatus.DeviceFound -> "Dispositivo Encontrado"
-                is RaceTelemetryContract.BluetoothStatus.Connected -> "Conectado: ${targetStatus.deviceName}"
-                is RaceTelemetryContract.BluetoothStatus.ConnectionFailed -> "Falha na Conexão"
+                is BluetoothStatus.Disconnected -> "Desconectado"
+                is BluetoothStatus.Scanning -> "Procurando OBD2..."
+                is BluetoothStatus.DeviceFound -> "Dispositivo Encontrado"
+                is BluetoothStatus.Connected -> "Conectado: ${targetStatus.deviceName}"
+                is BluetoothStatus.ConnectionFailed -> "Falha na Conexão"
+                is BluetoothStatus.Connecting -> "Conectando..."
             }
 
             val statusColor = when (targetStatus) {
-                is RaceTelemetryContract.BluetoothStatus.Connected -> Color(0xFF4CAF50) // Verde
-                is RaceTelemetryContract.BluetoothStatus.Scanning,
-                is RaceTelemetryContract.BluetoothStatus.DeviceFound -> Color(0xFFFFC107) // Amarelo
-                is RaceTelemetryContract.BluetoothStatus.ConnectionFailed -> Color(0xFFF44336) // Vermelho
+                is BluetoothStatus.Connected -> Color(0xFF4CAF50) // Verde
+                is BluetoothStatus.Scanning,
+                is BluetoothStatus.DeviceFound -> Color(0xFFFFC107) // Amarelo
+                is BluetoothStatus.ConnectionFailed -> Color(0xFFF44336) // Vermelho
                 else -> Color.Gray
             }
 
             val (actionText, actionColor) = when (targetStatus) {
-                is RaceTelemetryContract.BluetoothStatus.Connected -> Pair("CLIQUE PARA DESCONECTAR", Color(0xFFD32F2F))
-                is RaceTelemetryContract.BluetoothStatus.DeviceFound -> Pair("CLIQUE PARA CONECTAR", Color(0xFFFFC107))
-                is RaceTelemetryContract.BluetoothStatus.Scanning -> Pair("PROCURANDO...", Color.Gray)
+                is BluetoothStatus.Connected -> Pair("CLIQUE PARA DESCONECTAR", Color(0xFFD32F2F))
+                is BluetoothStatus.DeviceFound -> Pair("CLIQUE PARA CONECTAR", Color(0xFFFFC107))
+                is BluetoothStatus.Scanning -> Pair("PROCURANDO...", Color.Gray)
+                is BluetoothStatus.Connecting -> Pair("CONECTANDO...", Color.Gray)
                 else -> Pair("CLIQUE PARA PROCURAR", Color(0xFF1E88E5))
             }
 
@@ -404,11 +407,11 @@ fun SplitItem(label: String, time: String) {
 @Composable
 fun ActionButtons(
     isRecording: Boolean,
-    bluetoothStatus: RaceTelemetryContract.BluetoothStatus,
+    bluetoothStatus: BluetoothStatus,
     onArmClick: () -> Unit,
     onStopClick: () -> Unit
 ) {
-    val isConnected = bluetoothStatus is RaceTelemetryContract.BluetoothStatus.Connected
+    val isConnected = bluetoothStatus is BluetoothStatus.Connected
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -465,7 +468,7 @@ fun ActionButtons(
 fun RaceDashboardPreview() {
     RaceDashboardContent(
         state = RaceTelemetryContract.State(
-            bluetoothStatus = RaceTelemetryContract.BluetoothStatus.Connected("Dispositivo Genérico"),
+            bluetoothStatus = BluetoothStatus.Connected("Dispositivo Genérico"),
             currentSpeed = 100,
             currentRpm = 4500,
             timer0to100 = 4150,

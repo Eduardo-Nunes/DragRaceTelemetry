@@ -1,16 +1,8 @@
 package com.eduardo.nunes.drt.features.race
 
-import com.juul.kable.Advertisement
+import com.eduardo.nunes.drt.core.bluetooth.BluetoothStatus
 
 interface RaceTelemetryContract {
-    sealed class BluetoothStatus {
-        object Disconnected : BluetoothStatus()
-        object Scanning : BluetoothStatus()
-        data class Connected(val deviceName: String) : BluetoothStatus()
-        data class DeviceFound(val device: Advertisement) : BluetoothStatus()
-        data class ConnectionFailed(val message: String) : BluetoothStatus()
-    }
-
     data class State(
         val bluetoothStatus: BluetoothStatus = BluetoothStatus.Disconnected,
         val currentSpeed: Int = 0,
