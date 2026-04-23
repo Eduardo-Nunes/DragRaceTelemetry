@@ -71,7 +71,6 @@ fun RaceDashboardScreen(
         // }
     }
 }
-
 @Composable
 private fun RaceDashboardContent(
     state: RaceTelemetryContract.State,
@@ -84,87 +83,208 @@ private fun RaceDashboardContent(
             modifier = Modifier.fillMaxSize(),
             color = Color(0xFF0F0F13) // Leve ajuste para match com a imagem de fundo
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
+            // BoxWithConstraints lê o tamanho exato disponível na tela (Android, iOS, Desktop)
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
 
-                // Top Section: Header + Terminal
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = !isMenuOpen,
-                            modifier = Modifier.align(Alignment.CenterStart),
-                            enter = fadeIn(),
-                            exit = fadeOut()
-                        ) {
-                            IconButton(onClick = onMenuClick) {
-                                Icon(
-                                    imageVector = Icons.Filled.ChevronRight,
-                                    contentDescription = "Menu",
-                                    tint = Color.White
-                                )
-                            }
+                // Se a largura for maior que a altura, consideramos "Modo Paisagem"
+                val isLandscape = maxWidth > maxHeight
+
+                if (isLandscape) {
+                    RaceDashboardHorizontalLayout(state, onIntent, isMenuOpen, onMenuClick)
+                } else {
+                    RaceDashboardVerticalLayout(state, onIntent, isMenuOpen, onMenuClick)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RaceDashboardVerticalLayout(
+    state: RaceTelemetryContract.State,
+    onIntent: (RaceTelemetryContract.Intent) -> Unit,
+    isMenuOpen: Boolean,
+    onMenuClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        // Top Section: Header + Terminal
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Box(modifier = Modifier.align(Alignment.CenterStart)) {
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = !isMenuOpen,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(Icons.Filled.ChevronRight, contentDescription = "Menu", tint = Color.White)
                         }
-
-                        // Mapeamento Direto do Contrato
-                        StatusHeader(
-                            status = state.bluetoothStatus,
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .padding(top = 4.dp),
-                            onScanClick = { onIntent(RaceTelemetryContract.Intent.StartScanning) },
-                            onConnectClick = { onIntent(RaceTelemetryContract.Intent.ConnectToDevice) },
-                            onDisconnectClick = { onIntent(RaceTelemetryContract.Intent.DisconnectDevice) }
-                        )
-                    }
-
-                    if (state.terminal.isVisible) {
-                        TerminalLogComponent(logs = state.terminal.logs)
                     }
                 }
 
-                // Central: Velocímetro (Skip Recomposition Otimizado com primitivos)
+                StatusHeader(
+                    status = state.bluetoothStatus,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(top = 4.dp),
+                    onScanClick = { onIntent(RaceTelemetryContract.Intent.StartScanning) },
+                    onConnectClick = { onIntent(RaceTelemetryContract.Intent.ConnectToDevice) },
+                    onDisconnectClick = { onIntent(RaceTelemetryContract.Intent.DisconnectDevice) }
+                )
+            }
+        }
+
+        // Middle Section: Terminal + Velocímetro flexíveis
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (state.terminal.isVisible) {
+                Box(modifier = Modifier.heightIn(max = 100.dp)) {
+                    TerminalLogComponent(logs = state.terminal.logs)
+                }
+            }
+            SpeedometerSection(
+                speed = state.telemetry.speed,
+                rpm = state.telemetry.rpm
+            )
+        }
+
+        // Bottom Section: Cronômetros e Botões ancorados
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Timer0to100Section(
+                formattedTime = state.race.run0to100.formattedTime,
+                isCompleted = state.race.run0to100.isCompleted,
+                isRecording = state.race.isRecording
+            )
+
+            RaceSplitsSection(
+                currentDistance = state.race.currentDistance,
+                currentTimer = state.race.formattedCurrentTimer,
+                formatted60ft = state.race.run60ft.formattedTime,
+                formatted100m = state.race.run100m.formattedTime,
+                formatted201m = state.race.run201m.formattedTime,
+                isRecording = state.race.isRecording
+            )
+
+            ActionButtons(
+                isRecording = state.race.isRecording,
+                bluetoothStatus = state.bluetoothStatus,
+                onArmClick = { onIntent(RaceTelemetryContract.Intent.StartRace) },
+                onStopClick = { onIntent(RaceTelemetryContract.Intent.StopRace) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun RaceDashboardHorizontalLayout(
+    state: RaceTelemetryContract.State,
+    onIntent: (RaceTelemetryContract.Intent) -> Unit,
+    isMenuOpen: Boolean,
+    onMenuClick: () -> Unit
+) {
+    // Row divide a tela horizontalmente em duas metades (50% / 50%)
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 32.dp, bottom = 12.dp, start = 12.dp, end = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        // Lado Esquerdo: Conexão, Terminal e Velocímetro
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Header Compacto
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Box(modifier = Modifier.align(Alignment.CenterStart)) {
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = !isMenuOpen,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(Icons.Filled.ChevronRight, contentDescription = "Menu", tint = Color.White)
+                        }
+                    }
+                }
+
+                StatusHeader(
+                    status = state.bluetoothStatus,
+                    modifier = Modifier.align(Alignment.Center),
+                    onScanClick = { onIntent(RaceTelemetryContract.Intent.StartScanning) },
+                    onConnectClick = { onIntent(RaceTelemetryContract.Intent.ConnectToDevice) },
+                    onDisconnectClick = { onIntent(RaceTelemetryContract.Intent.DisconnectDevice) }
+                )
+            }
+
+            if (state.terminal.isVisible) {
+                Box(modifier = Modifier.heightIn(max = 80.dp).padding(top = 8.dp)) {
+                    TerminalLogComponent(logs = state.terminal.logs)
+                }
+            }
+
+            // Velocímetro ocupa o resto do espaço na esquerda
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
                 SpeedometerSection(
                     speed = state.telemetry.speed,
                     rpm = state.telemetry.rpm
                 )
+            }
+        }
 
-                // Seção de Cronômetros (UI Burra, lê direto do contrato)
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Timer0to100Section(
-                        formattedTime = state.race.run0to100.formattedTime,
-                        isCompleted = state.race.run0to100.isCompleted,
-                        isRecording = state.race.isRecording
-                    )
+        // Lado Direito: Tempos da Corrida e Ação
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Timer0to100Section(
+                    formattedTime = state.race.run0to100.formattedTime,
+                    isCompleted = state.race.run0to100.isCompleted,
+                    isRecording = state.race.isRecording
+                )
 
-                    RaceSplitsSection(
-                        currentDistance = state.race.currentDistance,
-                        currentTimer = state.race.formattedCurrentTimer,
-                        formatted60ft = state.race.run60ft.formattedTime,
-                        formatted100m = state.race.run100m.formattedTime,
-                        formatted201m = state.race.run201m.formattedTime,
-                        isRecording = state.race.isRecording
-                    )
-                }
-
-                // Footer: Botões de Ação
-                ActionButtons(
-                    isRecording = state.race.isRecording,
-                    bluetoothStatus = state.bluetoothStatus,
-                    onArmClick = { onIntent(RaceTelemetryContract.Intent.StartRace) },
-                    onStopClick = { onIntent(RaceTelemetryContract.Intent.StopRace) }
+                RaceSplitsSection(
+                    currentDistance = state.race.currentDistance,
+                    currentTimer = state.race.formattedCurrentTimer,
+                    formatted60ft = state.race.run60ft.formattedTime,
+                    formatted100m = state.race.run100m.formattedTime,
+                    formatted201m = state.race.run201m.formattedTime,
+                    isRecording = state.race.isRecording
                 )
             }
+
+            ActionButtons(
+                isRecording = state.race.isRecording,
+                bluetoothStatus = state.bluetoothStatus,
+                onArmClick = { onIntent(RaceTelemetryContract.Intent.StartRace) },
+                onStopClick = { onIntent(RaceTelemetryContract.Intent.StopRace) }
+            )
         }
     }
 }
@@ -180,7 +300,9 @@ fun StatusHeader(
     val onClick: () -> Unit = when (status) {
         is BluetoothStatus.Connected -> onDisconnectClick
         is BluetoothStatus.DeviceFound -> onConnectClick
-        is BluetoothStatus.Scanning -> {{}}
+        is BluetoothStatus.Scanning -> {
+            {}
+        }
         else -> onScanClick
     }
 
@@ -364,7 +486,7 @@ fun RaceSplitsSection(
             .padding(20.dp)
             .fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -373,7 +495,12 @@ fun RaceSplitsSection(
         ) {
             Column {
                 Text("Distância", color = Color.Gray, fontSize = 12.sp)
-                Text("${currentDistance.toInt()}m", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "${currentDistance.toInt()}m",
+                    color = Color.White,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text("Tempo Atual", color = Color.Gray, fontSize = 12.sp)
@@ -474,21 +601,21 @@ fun ActionButtons(
 fun RaceDashboardPreview() {
     RaceDashboardContent(
         state = RaceTelemetryContract.State(
-            bluetoothStatus = BluetoothStatus.Disconnected,
+            bluetoothStatus = BluetoothStatus.Connected("obd2"),
             telemetry = TelemetryState(
-                speed = 0,
-                rpm = 0
+                speed = 105,
+                rpm = 3500
             ),
             race = RaceSession(
                 isRecording = false,
-                currentDistance = 0.0,
-                currentTimerMs = 0L,
-                run0to100 = Checkpoint(),
-                run60ft = Checkpoint(),
-                run100m = Checkpoint(),
+                currentDistance = 180.0,
+                currentTimerMs = 7091L,
+                run0to100 = Checkpoint(7000),
+                run60ft = Checkpoint(1500),
+                run100m = Checkpoint(4000),
                 run201m = Checkpoint()
             ),
-            terminal = TerminalState(isVisible = false)
+            terminal = TerminalState(isVisible = true)
         ),
         onIntent = {},
         isMenuOpen = false,
