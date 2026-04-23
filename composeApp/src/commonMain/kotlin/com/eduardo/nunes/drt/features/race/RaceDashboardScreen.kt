@@ -22,10 +22,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eduardo.nunes.drt.core.bluetooth.BluetoothStatus
 import com.eduardo.nunes.drt.core.ui.utils.KeepScreenOn
+import com.eduardo.nunes.drt.features.race.model.Checkpoint
+import com.eduardo.nunes.drt.features.race.model.RaceSession
+import com.eduardo.nunes.drt.features.race.model.TelemetryState
+import com.eduardo.nunes.drt.features.race.model.TerminalState
 import com.eduardo.nunes.drt.plataform.RequireBluetoothPermissions
-import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun RaceDashboardScreen(
@@ -34,38 +38,42 @@ fun RaceDashboardScreen(
     isMenuOpen: Boolean,
     onMenuClick: () -> Unit
 ) {
-    val state by viewModel.state.collectAsState()
+    // 1. Coleta Segura de Estado (Lifecycle Awareness)
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
     KeepScreenOn()
 
+    // 2. Tratamento Correto de Effects (One-Off Events)
     LaunchedEffect(Unit) {
-        viewModel.effect.collectLatest { effect ->
+        viewModel.effect.collect { effect ->
             when (effect) {
-                is RaceTelemetryContract.Effect.ShowError -> onShowSnackbar(effect.message)
-                is RaceTelemetryContract.Effect.Race201mCompleted -> {
-                    onShowSnackbar("Puxada 201m concluída em ${effect.formattedTime} segundos!")
+                is RaceTelemetryContract.Effect.ShowError -> {
+                    onShowSnackbar(effect.message)
                 }
-
                 is RaceTelemetryContract.Effect.Race0to100Completed -> {
-                    onShowSnackbar("0-100 km/h em ${effect.formattedTime} segundos!")
+                    onShowSnackbar("0-100 km/h em ${effect.formattedTime}s!")
+                }
+                is RaceTelemetryContract.Effect.Race201mCompleted -> {
+                    onShowSnackbar("Puxada 201m concluída em ${effect.formattedTime}s!")
                 }
             }
         }
     }
+
     RequireBluetoothPermissions {
-//        RequireLocationPermissions {
-            RaceDashboardContent(
-                state = state,
-                onIntent = viewModel::handleIntent,
-                isMenuOpen = isMenuOpen,
-                onMenuClick = onMenuClick
-            )
-//        }
+        // RequireLocationPermissions {
+        RaceDashboardContent(
+            state = state,
+            onIntent = viewModel::handleIntent,
+            isMenuOpen = isMenuOpen,
+            onMenuClick = onMenuClick
+        )
+        // }
     }
 }
 
 @Composable
-fun RaceDashboardContent(
+private fun RaceDashboardContent(
     state: RaceTelemetryContract.State,
     onIntent: (RaceTelemetryContract.Intent) -> Unit,
     isMenuOpen: Boolean,
@@ -74,7 +82,7 @@ fun RaceDashboardContent(
     MaterialTheme(colorScheme = darkColorScheme()) {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
+            color = Color(0xFF0F0F13) // Leve ajuste para match com a imagem de fundo
         ) {
             Column(
                 modifier = Modifier
@@ -84,16 +92,12 @@ fun RaceDashboardContent(
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
 
-                // Top Section: Configurações + Status + Terminal
+                // Top Section: Header + Terminal
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Header: Status do Bluetooth e Ações
-                    Box(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        // O ícone do menu some com um efeito de fade
+                    Box(modifier = Modifier.fillMaxWidth()) {
                         androidx.compose.animation.AnimatedVisibility(
                             visible = !isMenuOpen,
                             modifier = Modifier.align(Alignment.CenterStart),
@@ -109,49 +113,53 @@ fun RaceDashboardContent(
                             }
                         }
 
-                        // Status do Bluetooth na direita
+                        // Mapeamento Direto do Contrato
                         StatusHeader(
                             status = state.bluetoothStatus,
-                            modifier = Modifier.align(Alignment.Center).padding(top = 4.dp),
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(top = 4.dp),
                             onScanClick = { onIntent(RaceTelemetryContract.Intent.StartScanning) },
                             onConnectClick = { onIntent(RaceTelemetryContract.Intent.ConnectToDevice) },
                             onDisconnectClick = { onIntent(RaceTelemetryContract.Intent.DisconnectDevice) }
                         )
                     }
 
-                    // Terminal View (Mostrado apenas se Ativado)
-                    if (state.showTerminalLogs) {
-                        TerminalLogComponent(logs = state.terminalLogs)
+                    if (state.terminal.isVisible) {
+                        TerminalLogComponent(logs = state.terminal.logs)
                     }
                 }
 
-                // Central: Velocímetro
-                SpeedometerSection(speed = state.currentSpeed, rpm = state.currentRpm)
+                // Central: Velocímetro (Skip Recomposition Otimizado com primitivos)
+                SpeedometerSection(
+                    speed = state.telemetry.speed,
+                    rpm = state.telemetry.rpm
+                )
 
-                // Seção de Cronômetros
+                // Seção de Cronômetros (UI Burra, lê direto do contrato)
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Cronômetro 0-100 km/h
                     Timer0to100Section(
-                        formattedTime = state.formattedTimer0to100,
-                        isCompleted = state.is0to100Completed,
-                        isRecording = state.isRecording
+                        formattedTime = state.race.run0to100.formattedTime,
+                        isCompleted = state.race.run0to100.isCompleted,
+                        isRecording = state.race.isRecording
                     )
-                    // Etapas da Puxada: 60 pés, 100m, 201m
+
                     RaceSplitsSection(
-                        currentDistance = state.currentDistance,
-                        currentTimer = state.formattedCurrentTimer,
-                        formatted60ft = state.formatted60ft,
-                        formatted100m = state.formatted100m,
-                        formatted201m = state.formatted201m,
-                        isRecording = state.isRecording
+                        currentDistance = state.race.currentDistance,
+                        currentTimer = state.race.formattedCurrentTimer,
+                        formatted60ft = state.race.run60ft.formattedTime,
+                        formatted100m = state.race.run100m.formattedTime,
+                        formatted201m = state.race.run201m.formattedTime,
+                        isRecording = state.race.isRecording
                     )
                 }
+
                 // Footer: Botões de Ação
                 ActionButtons(
-                    isRecording = state.isRecording,
+                    isRecording = state.race.isRecording,
                     bluetoothStatus = state.bluetoothStatus,
                     onArmClick = { onIntent(RaceTelemetryContract.Intent.StartRace) },
                     onStopClick = { onIntent(RaceTelemetryContract.Intent.StopRace) }
@@ -176,14 +184,12 @@ fun StatusHeader(
         else -> onScanClick
     }
 
-    // Surface traz efeito de "Ripple" nativo para o clique
     Surface(
         onClick = onClick,
         color = Color(0xFF1E1E1E),
         shape = RoundedCornerShape(16.dp),
         modifier = modifier
     ) {
-        // Animação de transição suave entre os estados (Conectando, Conectado, etc)
         AnimatedContent(
             targetState = status,
             label = "status_header_animation"
@@ -192,16 +198,16 @@ fun StatusHeader(
                 is BluetoothStatus.Disconnected -> "Desconectado"
                 is BluetoothStatus.Scanning -> "Procurando OBD2..."
                 is BluetoothStatus.DeviceFound -> "Dispositivo Encontrado"
-                is BluetoothStatus.Connected -> "Conectado: ${targetStatus.deviceName}"
+                is BluetoothStatus.Connected -> "Conectado"
                 is BluetoothStatus.ConnectionFailed -> "Falha na Conexão"
                 is BluetoothStatus.Connecting -> "Conectando..."
             }
 
             val statusColor = when (targetStatus) {
-                is BluetoothStatus.Connected -> Color(0xFF4CAF50) // Verde
+                is BluetoothStatus.Connected -> Color(0xFF4CAF50)
                 is BluetoothStatus.Scanning,
-                is BluetoothStatus.DeviceFound -> Color(0xFFFFC107) // Amarelo
-                is BluetoothStatus.ConnectionFailed -> Color(0xFFF44336) // Vermelho
+                is BluetoothStatus.DeviceFound -> Color(0xFFFFC107)
+                is BluetoothStatus.ConnectionFailed -> Color(0xFFF44336)
                 else -> Color.Gray
             }
 
@@ -220,17 +226,21 @@ fun StatusHeader(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        modifier = Modifier.size(12.dp).background(statusColor, CircleShape)
+                        modifier = Modifier
+                            .size(10.dp)
+                            .background(statusColor, CircleShape)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = statusText, color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp
+                        text = statusText,
+                        color = Color.White,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                // Texto da Ação (substituindo o botão antigo)
                 Text(
                     text = actionText,
                     color = actionColor,
@@ -247,7 +257,6 @@ fun StatusHeader(
 fun TerminalLogComponent(logs: List<String>) {
     val listState = rememberLazyListState()
 
-    // Auto-scroll para o final quando novos logs chegam
     LaunchedEffect(logs.size) {
         if (logs.isNotEmpty()) {
             listState.animateScrollToItem(logs.size - 1)
@@ -287,10 +296,10 @@ fun SpeedometerSection(speed: Int, rpm: Int) {
     ) {
         Text(
             text = speed.toString(),
-            fontSize = 120.sp,
+            fontSize = 140.sp, // Ajustado para match com a UI base
             fontWeight = FontWeight.Bold,
             color = Color.White,
-            lineHeight = 120.sp
+            lineHeight = 140.sp
         )
         Text(
             text = "km/h",
@@ -299,13 +308,12 @@ fun SpeedometerSection(speed: Int, rpm: Int) {
             fontWeight = FontWeight.SemiBold
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // Exibição do RPM menor abaixo da velocidade
         Text(
             text = "$rpm RPM",
             fontSize = 20.sp,
-            color = Color(0xFF90CAF9),
+            color = Color(0xFF64B5F6), // Azul para match visual da screenshot
             fontWeight = FontWeight.Medium
         )
     }
@@ -322,8 +330,8 @@ fun Timer0to100Section(formattedTime: String, isCompleted: Boolean, isRecording:
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .background(Color(0xFF121212), RoundedCornerShape(16.dp))
-            .padding(vertical = 12.dp, horizontal = 24.dp)
+            .background(Color(0xFF151515), RoundedCornerShape(16.dp))
+            .padding(vertical = 16.dp, horizontal = 24.dp)
             .fillMaxWidth()
     ) {
         Text(
@@ -341,7 +349,6 @@ fun Timer0to100Section(formattedTime: String, isCompleted: Boolean, isRecording:
     }
 }
 
-
 @Composable
 fun RaceSplitsSection(
     currentDistance: Double,
@@ -353,13 +360,12 @@ fun RaceSplitsSection(
 ) {
     Column(
         modifier = Modifier
-            .background(Color(0xFF121212), RoundedCornerShape(16.dp))
-            .padding(16.dp)
+            .background(Color(0xFF151515), RoundedCornerShape(16.dp))
+            .padding(20.dp)
             .fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // Distância e Tempo Total Atuais
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -372,7 +378,7 @@ fun RaceSplitsSection(
             Column(horizontalAlignment = Alignment.End) {
                 Text("Tempo Atual", color = Color.Gray, fontSize = 12.sp)
                 Text(
-                    "${currentTimer}s",
+                    text = "${currentTimer}s",
                     color = if (isRecording) Color(0xFFE53935) else Color.White,
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Black
@@ -380,9 +386,8 @@ fun RaceSplitsSection(
             }
         }
 
-        HorizontalDivider(color = Color.DarkGray)
+        HorizontalDivider(color = Color(0xFF2A2A2A))
 
-        // Grid de Etapas
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             SplitItem(label = "60 pés", time = formatted60ft)
             SplitItem(label = "100m", time = formatted100m)
@@ -417,7 +422,6 @@ fun ActionButtons(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Crossfade suave ao trocar o estado do botão
         AnimatedContent(
             targetState = isRecording,
             label = "recording_button_animation"
@@ -445,8 +449,10 @@ fun ActionButtons(
                         .fillMaxWidth()
                         .height(64.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50),
-                        disabledContainerColor = Color(0xFF1E1E1E)
+                        containerColor = Color(0xFF2E2E2E), // Base cinza escura para "desarmado/conectado"
+                        contentColor = Color.White,
+                        disabledContainerColor = Color(0xFF1A1A1A), // Desativado bem escuro
+                        disabledContentColor = Color.DarkGray
                     ),
                     shape = RoundedCornerShape(12.dp),
                     enabled = isConnected
@@ -455,7 +461,7 @@ fun ActionButtons(
                         text = "ARMAR PUXADA",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isConnected) Color.White else Color.Gray
+                        color = if (isConnected) Color.White else Color(0xFF424242)
                     )
                 }
             }
@@ -468,29 +474,21 @@ fun ActionButtons(
 fun RaceDashboardPreview() {
     RaceDashboardContent(
         state = RaceTelemetryContract.State(
-            bluetoothStatus = BluetoothStatus.Connected("Dispositivo Genérico"),
-            currentSpeed = 100,
-            currentRpm = 4500,
-            timer0to100 = 4150,
-            formattedTimer0to100 = "4.150",
-            is0to100Completed = true,
-            currentDistance = 145.5,
-            currentTimer = 5450,
-            formattedCurrentTimer = "5.450",
-            formatted60ft = "2.100",
-            formatted100m = "4.300",
-            formatted201m = "--.---",
-            isRecording = true,
-            showTerminalLogs = true,
-            terminalLogs = listOf(
-                "Scanning for OBD2...",
-                "Connected Successfully!",
-                "TX: 010D",
-                "RX: 41 0D 4A",
-                "TX: 010C",
-                "RX: 41 0C 11 94",
-                "TX: 010D"
-            )
+            bluetoothStatus = BluetoothStatus.Disconnected,
+            telemetry = TelemetryState(
+                speed = 0,
+                rpm = 0
+            ),
+            race = RaceSession(
+                isRecording = false,
+                currentDistance = 0.0,
+                currentTimerMs = 0L,
+                run0to100 = Checkpoint(),
+                run60ft = Checkpoint(),
+                run100m = Checkpoint(),
+                run201m = Checkpoint()
+            ),
+            terminal = TerminalState(isVisible = false)
         ),
         onIntent = {},
         isMenuOpen = false,
