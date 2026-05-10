@@ -11,6 +11,7 @@ import com.eduardo.nunes.drt.core.velocity.VelocityFusionManager
 import com.eduardo.nunes.drt.features.race.model.Checkpoint
 import com.eduardo.nunes.drt.features.race.model.HardwareEvent
 import com.eduardo.nunes.drt.features.race.model.RaceSession
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -27,7 +28,8 @@ class RaceTelemetryViewModel(
     private val appSharedState: AppSharedState,
     private val obdBleManager: ObdBleManager,
     private val gpsManager: GpsManager,
-    private val velocityFusionManager: VelocityFusionManager
+    private val velocityFusionManager: VelocityFusionManager,
+    private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : ViewModel() {
     private val _state = MutableStateFlow(RaceTelemetryContract.State())
     internal val state: StateFlow<RaceTelemetryContract.State> = _state.asStateFlow()
@@ -45,7 +47,6 @@ class RaceTelemetryViewModel(
     }
     private fun setupDataPipelines() {
         // 1. Pipelines puros: Apenas movem dados de um lugar para outro sem alterar UI
-        // Usar 'onEach().launchIn()' é mais idiomático e limpo que múltiplos 'launch { collect {} }'
         obdBleManager.currentSpeed
             .onEach { velocityFusionManager.updateObdSpeed(it.toDouble()) }
             .launchIn(viewModelScope)
@@ -57,7 +58,6 @@ class RaceTelemetryViewModel(
 
     private fun observeHardwareEvents() {
         // 2. Unificação de Streams (Event Stream Unification)
-        // Isso cria um funil único. Zero concorrências de escrita no _state, zero race conditions.
         val hardwareStream = merge(
             obdBleManager.bluetoothStatus.map { HardwareEvent.BleStatus(it) },
             velocityFusionManager.fusedVelocity.map { HardwareEvent.FusedSpeed(it.toInt()) },
@@ -162,7 +162,7 @@ class RaceTelemetryViewModel(
     private fun startUiTimer() {
         timerJob?.cancel()
 
-        timerJob = viewModelScope.launch(Dispatchers.Default) {
+        timerJob = viewModelScope.launch(defaultDispatcher) {
             var currentDistance = 0.0
             var lastTick = TimeSource.Monotonic.markNow()
 
@@ -215,7 +215,7 @@ class RaceTelemetryViewModel(
                     currentState.copy(race = newRace)
                 }
 
-                // 16ms loop. Como agora só trafegamos primitivos e Value Objects, o impacto no GC é quase zero.
+                // 16ms loop.
                 delay(16.milliseconds)
             }
         }
