@@ -3,11 +3,9 @@ package com.eduardo.nunes.drt.core.velocity
 import app.cash.turbine.test
 import com.eduardo.nunes.drt.core.state.AppSharedState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class VelocityFusionManagerTest {
@@ -17,9 +15,7 @@ class VelocityFusionManagerTest {
     @Test
     fun `initial state should have 0 fused velocity and 1 correction ratio`() = runTest {
         // Arrange
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val scope = TestScope(dispatcher)
-        val manager = VelocityFusionManager(fakeAppSharedState, scope)
+        val manager = VelocityFusionManagerImpl(fakeAppSharedState)
 
         // Act & Assert
         manager.fusedVelocity.test {
@@ -31,9 +27,8 @@ class VelocityFusionManagerTest {
     @Test
     fun `calibration threshold should not alter ratio if speed is below 20kmh`() = runTest {
         // Arrange
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val scope = TestScope(dispatcher)
-        val manager = VelocityFusionManager(fakeAppSharedState, scope)
+
+        val manager = VelocityFusionManagerImpl(fakeAppSharedState)
 
         // Usamos a Turbine para observar o fluxo ANTES de enviarmos as atualizações,
         // garantindo que capturamos as emissões na ordem correta.
@@ -57,9 +52,8 @@ class VelocityFusionManagerTest {
     @Test
     fun `successful calibration should calculate and apply ratio`() = runTest {
         // Arrange
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val scope = TestScope(dispatcher)
-        val manager = VelocityFusionManager(fakeAppSharedState, scope)
+
+        val manager = VelocityFusionManagerImpl(fakeAppSharedState)
 
         manager.fusedVelocity.test {
             // 1. Estado inicial
@@ -83,9 +77,8 @@ class VelocityFusionManagerTest {
     @Test
     fun `wheel spin protection should keep previous ratio on massive discrepancies`() = runTest {
         // Arrange
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val scope = TestScope(dispatcher)
-        val manager = VelocityFusionManager(fakeAppSharedState, scope)
+
+        val manager = VelocityFusionManagerImpl(fakeAppSharedState)
 
         manager.fusedVelocity.test {
             // Pula o valor inicial
